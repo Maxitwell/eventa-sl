@@ -90,20 +90,32 @@ export default function Discover() {
       (priceFilter === "Free" && event.price === 0) ||
       (priceFilter === "Paid" && event.price > 0);
 
-    // 4. Date Filter (Simplified string check based on existing mock formats, could be upgraded to full Date checks)
+    // 4. Date Filter
     let matchesDate = true;
     if (dateFilter !== "Any Date" && event.date) {
-      // Since event.date is a string like "Dec 20", we do a very basic check for this iteration.
-      // For production "This Month", you'd parse event.date and compare to the current month.
-      // For now, we'll just let it pass or you can implement complex Date parsing here.
-      const eventMonth = event.date.split(" ")[0];
-      const currentMonth = new Date().toLocaleString('default', { month: 'short' });
+      // event.date is formatted as "Dec 20", we append the current year to parse it correctly
+      const currentYear = new Date().getFullYear();
+      const eventDate = new Date(`${event.date} ${currentYear}`);
+      const today = new Date();
 
       if (dateFilter === "This Month") {
-        matchesDate = eventMonth === currentMonth;
+        matchesDate = eventDate.getMonth() === today.getMonth() && eventDate.getFullYear() === today.getFullYear();
       } else if (dateFilter === "This Weekend") {
-        // For simplicity in the demo, we assume "This Weekend" is just true. Real logic would require parsing the year/day.
-        matchesDate = true;
+        const currentDay = today.getDay(); // Sunday = 0, Monday = 1, etc.
+        let diffToFriday = 5 - currentDay;
+
+        // If today is Sunday (0), the Friday of THIS weekend was 2 days ago
+        if (currentDay === 0) diffToFriday = -2;
+
+        const thisFriday = new Date(today);
+        thisFriday.setDate(today.getDate() + diffToFriday);
+        thisFriday.setHours(0, 0, 0, 0);
+
+        const thisSunday = new Date(thisFriday);
+        thisSunday.setDate(thisFriday.getDate() + 2);
+        thisSunday.setHours(23, 59, 59, 999);
+
+        matchesDate = eventDate >= thisFriday && eventDate <= thisSunday;
       }
     }
 

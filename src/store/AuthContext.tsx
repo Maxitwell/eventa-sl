@@ -8,7 +8,10 @@ import {
     signOut as firebaseSignOut,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    updateProfile as firebaseUpdateProfile
+    updateProfile as firebaseUpdateProfile,
+    RecaptchaVerifier,
+    signInWithPhoneNumber,
+    ConfirmationResult
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -25,6 +28,8 @@ interface AuthContextType {
     isLoading: boolean;
     loginWithGoogle: () => Promise<void>;
     loginWithEmail: (email: string, password?: string, isSignup?: boolean, name?: string) => Promise<void>;
+    loginWithPhone: (phoneNumber: string) => Promise<ConfirmationResult>;
+    verifyOTP: (confirmationResult: ConfirmationResult, otp: string) => Promise<void>;
     logout: () => Promise<void>;
     updateProfile: (name: string, avatar?: string) => Promise<void>;
 }
@@ -83,6 +88,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const loginWithPhone = async (phoneNumber: string): Promise<ConfirmationResult> => {
+        try {
+            if (!(window as any).recaptchaVerifier) {
+                (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+                    size: "invisible"
+                });
+            }
+            const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, (window as any).recaptchaVerifier);
+            return confirmationResult;
+        } catch (error) {
+            console.error("Error sending OTP", error);
+            throw error;
+        }
+    };
+
+    const verifyOTP = async (confirmationResult: ConfirmationResult, otp: string): Promise<void> => {
+        try {
+            await confirmationResult.confirm(otp);
+        } catch (error) {
+            console.error("Error verifying OTP", error);
+            throw error;
+        }
+    };
+
     const logout = async () => {
         try {
             await firebaseSignOut(auth);
@@ -115,6 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isLoading,
                 loginWithGoogle,
                 loginWithEmail,
+                loginWithPhone,
+                verifyOTP,
                 logout,
                 updateProfile,
             }}

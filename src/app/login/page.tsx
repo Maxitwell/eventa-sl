@@ -5,14 +5,18 @@ import { useAuth } from "@/store/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Mail, Lock, ArrowRight, Chrome } from "lucide-react";
+import { Mail, Lock, ArrowRight, Chrome, Phone } from "lucide-react";
 import Link from "next/link";
 
 function LoginContent() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const { loginWithEmail, loginWithGoogle } = useAuth();
+    const [authMode, setAuthMode] = useState<"email" | "phone">("email");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [otp, setOtp] = useState("");
+    const [confirmationResult, setConfirmationResult] = useState<any>(null);
+    const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirectTo = searchParams.get("redirect") || "/dashboard";
@@ -35,6 +39,36 @@ function LoginContent() {
         await loginWithGoogle();
         setIsLoading(false);
         router.push(redirectTo);
+    };
+
+    const handleSendOTP = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const formattedPhone = phoneNumber.startsWith("+") ? phoneNumber : `+232${phoneNumber.replace(/^0+/, '')}`;
+            const result = await loginWithPhone(formattedPhone);
+            setConfirmationResult(result);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to send SMS. Make sure to use the correct country code.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            if (confirmationResult) {
+                await verifyOTP(confirmationResult, otp);
+                router.push(redirectTo);
+            }
+        } catch (error) {
+            alert("Invalid verification code.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -62,7 +96,7 @@ function LoginContent() {
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-[480px] relative z-10">
                 <div className="bg-white py-10 px-6 shadow-xl shadow-gray-200/50 sm:rounded-3xl border border-gray-100 sm:px-12">
 
-                    <div className="mb-6">
+                    <div className="mb-6 space-y-3">
                         <Button
                             type="button"
                             variant="outline"
@@ -73,6 +107,18 @@ function LoginContent() {
                             <Chrome size={18} className="mr-2 text-gray-700" />
                             Continue with Google
                         </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setAuthMode(authMode === "email" ? "phone" : "email");
+                                setConfirmationResult(null);
+                            }}
+                            className="w-full flex justify-center !text-sm !font-bold py-3 text-orange-600 border-orange-200 hover:bg-orange-50"
+                        >
+                            {authMode === "email" ? <Phone size={18} className="mr-2" /> : <Mail size={18} className="mr-2" />}
+                            {authMode === "email" ? "Continue with Phone Number" : "Continue with Email"}
+                        </Button>
                     </div>
 
                     <div className="relative mb-6">
@@ -80,48 +126,103 @@ function LoginContent() {
                             <div className="w-full border-t border-gray-200" />
                         </div>
                         <div className="relative flex justify-center text-sm font-medium">
-                            <span className="bg-white px-4 text-gray-500">Or continue with email</span>
+                            <span className="bg-white px-4 text-gray-500">Or continue with {authMode === "phone" ? "phone number" : "email"}</span>
                         </div>
                     </div>
 
-                    <form className="space-y-6" onSubmit={handleEmailLogin}>
-                        <div>
-                            <Input
-                                label="Email address"
-                                type="email"
-                                required
-                                icon={<Mail size={16} />}
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
+                    <div id="recaptcha-container"></div>
 
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <label className="block text-sm font-medium text-gray-700">Password</label>
-                                <Link href="/forgot-password" className="text-sm font-medium text-orange-600 hover:text-orange-500">
-                                    Forgot password?
-                                </Link>
+                    {authMode === "email" ? (
+                        <form className="space-y-6" onSubmit={handleEmailLogin}>
+                            <div>
+                                <Input
+                                    label="Email address"
+                                    type="email"
+                                    required
+                                    icon={<Mail size={16} />}
+                                    placeholder="you@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
                             </div>
-                            <Input
-                                type="password"
-                                required
-                                icon={<Lock size={16} />}
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
 
-                        <Button
-                            type="submit"
-                            className="w-full flex justify-center py-3"
-                            isLoading={isLoading}
-                        >
-                            Sign In <ArrowRight size={16} className="ml-2" />
-                        </Button>
-                    </form>
+                            <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-sm font-medium text-gray-700">Password</label>
+                                    <Link href="/forgot-password" className="text-sm font-medium text-orange-600 hover:text-orange-500">
+                                        Forgot password?
+                                    </Link>
+                                </div>
+                                <Input
+                                    type="password"
+                                    required
+                                    icon={<Lock size={16} />}
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+
+                            <Button
+                                type="submit"
+                                className="w-full flex justify-center py-3"
+                                isLoading={isLoading}
+                            >
+                                Sign In <ArrowRight size={16} className="ml-2" />
+                            </Button>
+                        </form>
+                    ) : confirmationResult ? (
+                        <form className="space-y-6" onSubmit={handleVerifyOTP}>
+                            <div>
+                                <Input
+                                    label="Verification Code"
+                                    type="text"
+                                    required
+                                    icon={<Lock size={16} />}
+                                    placeholder="123456"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                />
+                                <p className="mt-2 text-xs text-gray-500">Enter the 6-digit code sent to your phone.</p>
+                            </div>
+                            <Button
+                                type="submit"
+                                className="w-full flex justify-center py-3"
+                                isLoading={isLoading}
+                            >
+                                Verify Code <ArrowRight size={16} className="ml-2" />
+                            </Button>
+                            <button
+                                type="button"
+                                onClick={() => setConfirmationResult(null)}
+                                className="mt-4 text-sm text-orange-600 w-full text-center hover:underline"
+                            >
+                                Change phone number
+                            </button>
+                        </form>
+                    ) : (
+                        <form className="space-y-6" onSubmit={handleSendOTP}>
+                            <div>
+                                <Input
+                                    label="Phone Number"
+                                    type="tel"
+                                    required
+                                    icon={<Phone size={16} />}
+                                    placeholder="+232 76 123456"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                />
+                                <p className="mt-2 text-xs text-gray-500">Include your country code (e.g. +232).</p>
+                            </div>
+                            <Button
+                                type="submit"
+                                className="w-full flex justify-center py-3"
+                                isLoading={isLoading}
+                            >
+                                Send Login Code <ArrowRight size={16} className="ml-2" />
+                            </Button>
+                        </form>
+                    )}
                 </div>
             </div>
         </div>
