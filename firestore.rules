@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default: Deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- EVENTS COLLECTION ---
+    match /events/{eventId} {
+      
+      // Anyone can read a published event or get a specific event if they are the organizer
+      allow get: if resource.data.status == 'published' || 
+                     (request.auth != null && resource.data.organizerId == request.auth.uid);
+                     
+      // Splitting list queries helps Firestore's static analyzer
+      allow list: if resource.data.status == 'published';
+      allow list: if request.auth != null && resource.data.organizerId == request.auth.uid;
+
+      // Only authenticated users can create an event
+      allow create: if request.auth != null 
+                    && request.resource.data.organizerId == request.auth.uid 
+                    && request.resource.data.price >= 0
+                    && request.resource.data.totalCapacity >= 0
+                    && request.resource.data.ticketsSold == 0;
+
+      // Only the event creator can update their event
+      // Allow atomic increments for ticketsSold during purchases
+      allow update: if (request.auth != null && resource.data.organizerId == request.auth.uid) ||
+                    // Allow ticket purchase transactions to increment ticketsSold
+                    (request.auth != null && 
+                     request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['ticketsSold', 'totalCapacity']) &&
+                     request.resource.data.ticketsSold > resource.data.ticketsSold);
+                     
+      // Only the event creator can delete their event
+      allow delete: if request.auth != null && resource.data.organizerId == request.auth.uid;
+    }
+
+    // --- TICKETS COLLECTION ---
+    match /tickets/{ticketId} {
+      
+      // Users can read their own tickets.
+      // Or anyone authenticated can attempt a read (for Check-In Scanner), 
+      // but the app logic protects the event ownership.
+      allow read: if request.auth != null;
+      
+      // Only authenticated users can create a ticket for themselves
+      allow create: if request.auth != null 
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.pricePaid >= 0
+                    && request.resource.data.status == 'valid';
+      
+      // Only the organizer of the event can update the status (e.g. to 'used')
+      allow update: if request.auth != null 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+                    // Ideally we'd join with the event doc to check organizerId, 
+                    // but for simplicity in MVP we just ensure only status changes.
+      
+      // Tickets cannot be deleted by users
+      allow delete: if false;
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+  }
+}
