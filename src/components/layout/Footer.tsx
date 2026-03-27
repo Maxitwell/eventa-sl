@@ -14,7 +14,7 @@ export function Footer() {
                     <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
 
                     <div className="bg-white/20 p-4 rounded-full mb-6 backdrop-blur-sm border border-white/20">
-                        <MessageCircle size={40} className="text-white fill-white" />
+                        <img src="/whatsapp-logo.svg" alt="WhatsApp" className="w-10 h-10 object-contain" />
                     </div>
                     <h3 className="text-3xl font-extrabold mb-4">Book Tickets on WhatsApp!</h3>
                     <p className="text-teal-50 text-lg max-w-2xl mb-8">
@@ -26,7 +26,7 @@ export function Footer() {
                         rel="noopener noreferrer"
                         className="bg-white text-teal-600 font-bold py-4 px-10 rounded-full hover:bg-teal-50 transition-colors shadow-md flex items-center gap-2 group"
                     >
-                        <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
+                        <img src="/whatsapp-logo.svg" alt="WhatsApp" className="w-5 h-5 group-hover:scale-110 transition-transform object-contain" />
                         Chat with our Bot
                     </a>
                 </div>
@@ -34,7 +34,7 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                     <div className="col-span-1 md:col-span-2">
                         <Link href="/" className="flex items-center gap-2 mb-6 inline-block">
-                            <img src="/logo.png" alt="Eventa Logo" className="h-12 w-auto rounded-lg object-contain" />
+                            <img src="/desktop-logo.svg" alt="Eventa Logo" className="h-12 w-auto object-contain" />
                         </Link>
                         <p className="text-gray-500 max-w-sm">
                             The heartbeat of Sierra Leone. Discover the hottest concerts, tech meetups, and beach festivals happening across the country.

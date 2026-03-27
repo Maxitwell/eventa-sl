@@ -220,7 +220,7 @@ export default function EventDetailsPage() {
                                 )}
                                 {event.contactSocials.whatsapp && (
                                     <a href={`https://wa.me/${event.contactSocials.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-600 hover:text-green-600 bg-gray-50 px-4 py-2 rounded-full font-medium transition-colors border border-gray-100">
-                                        <MessageCircle size={16} /> WhatsApp
+                                        <img src="/whatsapp-logo.svg" alt="WhatsApp" className="w-4 h-4 object-contain" /> WhatsApp
                                     </a>
                                 )}
                                 {event.contactSocials.instagram && (

@@ -150,7 +150,7 @@ export default function Discover() {
           </h1>
           <p className="text-lg text-gray-200 mb-8 max-w-lg font-medium">
             Discover the hottest concerts, tech meetups, and beach festivals
-            happening across the country this weekend.
+            happening across the country this weekend on Eventa.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <button
