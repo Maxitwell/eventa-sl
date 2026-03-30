@@ -29,9 +29,8 @@ service cloud.firestore {
       // Only the event creator can update their event
       // Allow atomic increments for ticketsSold during purchases
       allow update: if (request.auth != null && resource.data.organizerId == request.auth.uid) ||
-                    // Allow ticket purchase transactions to increment ticketsSold
-                    (request.auth != null && 
-                     request.resource.data.diff(resource.data).affectedKeys()
+                    // Allow ticket purchase transactions to increment ticketsSold (even for guests)
+                    (request.resource.data.diff(resource.data).affectedKeys()
                      .hasOnly(['ticketsSold', 'totalCapacity']) &&
                      request.resource.data.ticketsSold > resource.data.ticketsSold);
                      
@@ -47,15 +46,20 @@ service cloud.firestore {
       // but the app logic protects the event ownership.
       allow read: if request.auth != null;
       
-      // Only authenticated users can create a ticket for themselves
-      allow create: if request.auth != null 
-                    && request.resource.data.userId == request.auth.uid
+      // Only authenticated users can create a ticket for themselves OR guests logging out
+      allow create: if ((request.auth != null && request.resource.data.userId == request.auth.uid) ||
+                        (request.resource.data.userId.matches('^guest_.*')))
                     && request.resource.data.pricePaid >= 0
                     && request.resource.data.status == 'valid';
       
       // Only the organizer of the event can update the status (e.g. to 'used')
-      allow update: if request.auth != null 
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow update: if (request.auth != null 
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+                    // Allow newly created accounts to link their past guest tickets
+                    (request.auth != null 
+                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId'])
+                     && resource.data.userId.matches('^guest_.*')
+                     && request.resource.data.userId == request.auth.uid);
                     // Ideally we'd join with the event doc to check organizerId, 
                     // but for simplicity in MVP we just ensure only status changes.
       

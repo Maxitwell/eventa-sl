@@ -5,8 +5,9 @@ import { useAuth } from "@/store/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Mail, Lock, ArrowRight, Chrome, Phone } from "lucide-react";
+import { ArrowRight, Chrome, Phone, Mail, Lock } from "lucide-react";
 import Link from "next/link";
+import { useEffect } from "react";
 
 function LoginContent() {
     const [email, setEmail] = useState("");
@@ -16,29 +17,39 @@ function LoginContent() {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otp, setOtp] = useState("");
     const [confirmationResult, setConfirmationResult] = useState<any>(null);
-    const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP } = useAuth();
+    const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, isLoggedIn, isLoading: isAuthLoading, currentUser } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const redirectTo = searchParams.get("redirect") || "/dashboard";
+    
+    const fallbackRedirect = currentUser?.role === "organizer" ? "/dashboard" : "/";
+    const redirectTo = searchParams.get("redirect") || fallbackRedirect;
+
+    useEffect(() => {
+        if (!isAuthLoading && isLoggedIn) {
+            router.push(redirectTo);
+        }
+    }, [isAuthLoading, isLoggedIn, router, redirectTo]);
 
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
             await loginWithEmail(email, password, false);
-            router.push(redirectTo);
+            // We intentionally do NOT call router.push here nor setIsLoading(false) on success.
+            // The useEffect will detect isLoggedIn=true and route the user correctly once their role is loaded.
         } catch (error) {
             alert("Invalid email or password");
-        } finally {
             setIsLoading(false);
         }
     };
 
     const handleGoogleLogin = async () => {
         setIsLoading(true);
-        await loginWithGoogle();
-        setIsLoading(false);
-        router.push(redirectTo);
+        try {
+            await loginWithGoogle();
+        } catch (error) {
+            setIsLoading(false);
+        }
     };
 
     const handleSendOTP = async (e: React.FormEvent) => {
@@ -62,11 +73,9 @@ function LoginContent() {
         try {
             if (confirmationResult) {
                 await verifyOTP(confirmationResult, otp);
-                router.push(redirectTo);
             }
         } catch (error) {
             alert("Invalid verification code.");
-        } finally {
             setIsLoading(false);
         }
     };

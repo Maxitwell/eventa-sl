@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/shared/ToastProvider";
 import { Heart, Search, Star, MapPin, Music, Briefcase, Zap } from "lucide-react";
 
-import { EventEntity } from "@/lib/db";
+import { EventEntity, toggleSavedEvent } from "@/lib/db";
+import { useAuth } from "@/store/AuthContext";
 
 interface EventCardProps {
     event: EventEntity;
@@ -17,7 +18,8 @@ interface EventCardProps {
 export function EventCard({ event, onClickTickets, onClickWaitlist }: EventCardProps) {
     const router = useRouter();
     const { showToast } = useToast();
-    const [isLiked, setIsLiked] = useState(false);
+    const { isLoggedIn, currentUser, updateSavedEventsCache } = useAuth();
+    const isLiked = currentUser?.savedEvents?.includes(event.id) || false;
     const [isHypeLoading, setIsHypeLoading] = useState(false);
 
     const handleHype = () => {
@@ -30,6 +32,29 @@ export function EventCard({ event, onClickTickets, onClickWaitlist }: EventCardP
                 new CustomEvent("open-hype-modal", { detail: { event } })
             );
         }, 1500);
+    };
+
+    const handleLike = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isLoggedIn || !currentUser) {
+            showToast("Log in to save events", "error");
+            router.push("/login");
+            return;
+        }
+
+        const newIsLiked = !isLiked;
+        
+        // Optimistically update UI globally via Context
+        updateSavedEventsCache(event.id, newIsLiked);
+        
+        // Background DB sync
+        try {
+            await toggleSavedEvent(currentUser.id, event.id, newIsLiked);
+        } catch (error) {
+            // Revert cache on fail
+            updateSavedEventsCache(event.id, isLiked);
+            showToast("Failed to save event.", "error");
+        }
     };
 
     const categoryColors: Record<string, string> = {
@@ -103,7 +128,7 @@ export function EventCard({ event, onClickTickets, onClickWaitlist }: EventCardP
                 {/* Like Button */}
                 {!isSoldOut && (
                     <button
-                        onClick={(e) => { e.stopPropagation(); setIsLiked(!isLiked); }}
+                        onClick={handleLike}
                         className={`absolute top-4 left-4 p-2 rounded-full backdrop-blur-sm transition-all duration-200 z-10 ${isLiked
                             ? "bg-white text-red-500 scale-90"
                             : "bg-black/20 text-white hover:bg-white hover:text-red-500 opacity-0 group-hover:opacity-100"

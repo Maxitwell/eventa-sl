@@ -10,12 +10,12 @@ import clsx from "clsx";
 import { getOrganizerEvents, updateEventStatus, EventEntity } from "@/lib/db";
 
 export default function Dashboard() {
-    const { currentUser, logout, isLoggedIn } = useAuth();
+    const { currentUser, logout, isLoggedIn, isLoading: isAuthLoading } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState("overview");
     const [events, setEvents] = useState<EventEntity[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingEvents, setIsLoadingEvents] = useState(true);
 
     // Temporary helper for seeding Events list to Firebase in DEV
     const handleSeedDatabase = async () => {
@@ -33,12 +33,19 @@ export default function Dashboard() {
         }
     };
 
-    // Protect route
-    if (!isLoggedIn) {
-        if (typeof window !== "undefined") {
+    // Protect route using useEffect to avoid Next.js Router render collisions
+    useEffect(() => {
+        if (!isAuthLoading && !isLoggedIn) {
             router.push("/login");
         }
-        return null;
+    }, [isLoggedIn, isAuthLoading, router]);
+
+    if (isAuthLoading || !isLoggedIn) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
     }
 
     const handleLogout = () => {
@@ -51,7 +58,7 @@ export default function Dashboard() {
         if (!currentUser) return;
 
         const fetchEvents = async () => {
-            setIsLoading(true);
+            setIsLoadingEvents(true);
             try {
                 const orgEvents = await getOrganizerEvents(currentUser.id);
                 // Sort by newest created
@@ -61,7 +68,7 @@ export default function Dashboard() {
                 console.error("Failed to load dashboard events:", error);
                 showToast("Failed to load your events", "error");
             } finally {
-                setIsLoading(false);
+                setIsLoadingEvents(false);
             }
         };
 
@@ -193,10 +200,10 @@ export default function Dashboard() {
                         <div>
                             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center justify-between">
                                 Your Events
-                                {isLoading && <span className="text-sm font-normal text-gray-400">Loading...</span>}
+                                {isLoadingEvents && <span className="text-sm font-normal text-gray-400">Loading...</span>}
                             </h3>
 
-                            {!isLoading && events.length === 0 && (
+                            {!isLoadingEvents && events.length === 0 && (
                                 <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center flex flex-col items-center">
                                     <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center text-gray-400 mb-4">
                                         <Ticket size={24} />

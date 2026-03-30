@@ -7,39 +7,66 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { User, Mail, Lock, ArrowRight, Chrome, Phone } from "lucide-react";
 import Link from "next/link";
+import { useEffect } from "react";
 
 function SignupContent() {
-    const [name, setName] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [surname, setSurname] = useState("");
     const [email, setEmail] = useState("");
+    const [confirmEmail, setConfirmEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [role, setRole] = useState<"attendee" | "organizer">("attendee");
     const [isLoading, setIsLoading] = useState(false);
     const [authMode, setAuthMode] = useState<"email" | "phone">("email");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otp, setOtp] = useState("");
     const [confirmationResult, setConfirmationResult] = useState<any>(null);
-    const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, updateProfile } = useAuth();
+    const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, updateProfile, isLoggedIn, isLoading: isAuthLoading, currentUser } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const redirectTo = searchParams.get("redirect") || "/dashboard";
+    
+    const fallbackRedirect = currentUser?.role === "organizer" ? "/dashboard" : "/";
+    const redirectTo = searchParams.get("redirect") || fallbackRedirect;
+
+    useEffect(() => {
+        if (!isAuthLoading && isLoggedIn) {
+            router.push(redirectTo);
+        }
+    }, [isAuthLoading, isLoggedIn, router, redirectTo]);
 
     const handleEmailSignup = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (email !== confirmEmail) {
+            alert("Email addresses do not match.");
+            return;
+        }
+        if (password !== confirmPassword) {
+            alert("Passwords do not match.");
+            return;
+        }
+
         setIsLoading(true);
         try {
-            await loginWithEmail(email, password, true, name);
-            router.push(redirectTo);
+            const fullName = `${firstName.trim()} ${surname.trim()}`;
+            await loginWithEmail(email, password, true, fullName, role, phoneNumber);
+            const dynamicRedirect = searchParams.get("redirect") || (role === "organizer" ? "/dashboard" : "/");
+            router.push(dynamicRedirect);
         } catch (error) {
             alert(error instanceof Error ? error.message : "Failed to create account");
-        } finally {
             setIsLoading(false);
         }
     };
 
     const handleGoogleSignup = async () => {
         setIsLoading(true);
-        await loginWithGoogle();
-        setIsLoading(false);
-        router.push(redirectTo);
+        try {
+            await loginWithGoogle();
+            // Wait for useEffect
+        } catch (error) {
+            setIsLoading(false);
+        }
     };
 
     const handleSendOTP = async (e: React.FormEvent) => {
@@ -63,14 +90,13 @@ function SignupContent() {
         try {
             if (confirmationResult) {
                 await verifyOTP(confirmationResult, otp);
-                if (name.trim() !== "") {
-                    await updateProfile(name);
+                const fullName = `${firstName.trim()} ${surname.trim()}`;
+                if (fullName.trim() !== "") {
+                    await updateProfile(fullName);
                 }
-                router.push(redirectTo);
             }
         } catch (error) {
             alert("Invalid verification code.");
-        } finally {
             setIsLoading(false);
         }
     };
@@ -99,6 +125,26 @@ function SignupContent() {
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-[480px] relative z-10">
                 <div className="bg-white py-10 px-6 shadow-xl shadow-gray-200/50 sm:rounded-3xl border border-gray-100 sm:px-12">
+                    
+                    <div className="mb-8">
+                        <label className="block text-sm font-bold text-gray-900 mb-3 text-center">I am here to...</label>
+                        <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+                            <button
+                                type="button"
+                                onClick={() => setRole("attendee")}
+                                className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${role === "attendee" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                            >
+                                Buy Tickets
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setRole("organizer")}
+                                className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${role === "organizer" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                            >
+                                Sell Tickets
+                            </button>
+                        </div>
+                    </div>
 
                     <div className="mb-6 space-y-3">
                         <Button
@@ -138,15 +184,39 @@ function SignupContent() {
 
                     {authMode === "email" ? (
                         <form className="space-y-6" onSubmit={handleEmailSignup}>
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <Input
+                                        label="First name"
+                                        type="text"
+                                        required
+                                        icon={<User size={16} />}
+                                        placeholder="John"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <Input
+                                        label="Surname"
+                                        type="text"
+                                        required
+                                        icon={<User size={16} />}
+                                        placeholder="Doe"
+                                        value={surname}
+                                        onChange={(e) => setSurname(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
                             <div>
                                 <Input
-                                    label="Full name"
-                                    type="text"
-                                    required
-                                    icon={<User size={16} />}
-                                    placeholder="John Doe"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    label="Phone Number (WhatsApp)"
+                                    type="tel"
+                                    icon={<Phone size={16} />}
+                                    placeholder="+232 76 123456"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
                                 />
                             </div>
 
@@ -163,6 +233,18 @@ function SignupContent() {
                             </div>
 
                             <div>
+                                <Input
+                                    label="Confirm Email"
+                                    type="email"
+                                    required
+                                    icon={<Mail size={16} />}
+                                    placeholder="you@example.com"
+                                    value={confirmEmail}
+                                    onChange={(e) => setConfirmEmail(e.target.value)}
+                                />
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                                 <Input
                                     type="password"
@@ -173,6 +255,18 @@ function SignupContent() {
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
                                 <p className="mt-2 text-xs text-gray-500">Must be at least 8 characters.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                                <Input
+                                    type="password"
+                                    required
+                                    icon={<Lock size={16} />}
+                                    placeholder="••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                />
                             </div>
 
                             <Button
@@ -214,16 +308,29 @@ function SignupContent() {
                         </form>
                     ) : (
                         <form className="space-y-6" onSubmit={handleSendOTP}>
-                            <div>
-                                <Input
-                                    label="Full name"
-                                    type="text"
-                                    required
-                                    icon={<User size={16} />}
-                                    placeholder="John Doe"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <Input
+                                        label="First name"
+                                        type="text"
+                                        required
+                                        icon={<User size={16} />}
+                                        placeholder="John"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <Input
+                                        label="Surname"
+                                        type="text"
+                                        required
+                                        icon={<User size={16} />}
+                                        placeholder="Doe"
+                                        value={surname}
+                                        onChange={(e) => setSurname(e.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div>
                                 <Input

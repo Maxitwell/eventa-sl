@@ -25,8 +25,11 @@ export function Navbar() {
     const navLinks = [
         { name: "Discover", href: "/" },
         { name: "My Tickets", href: "/tickets" },
-        { name: "Create Event", href: "/events/create" },
     ];
+
+    if (!isLoggedIn || currentUser?.role === "organizer") {
+        navLinks.push({ name: "Create Event", href: "/events/create" });
+    }
 
     return (
         <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -83,12 +86,14 @@ export function Navbar() {
                             </div>
                         ) : (
                             <div className="hidden md:flex items-center gap-4">
-                                <Link
-                                    href="/dashboard"
-                                    className="hidden md:flex bg-orange-50 text-orange-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-orange-100 transition border border-orange-200 items-center gap-2"
-                                >
-                                    <BarChart size={16} /> Dashboard
-                                </Link>
+                                {currentUser?.role === "organizer" && (
+                                    <Link
+                                        href="/dashboard"
+                                        className="hidden md:flex bg-orange-50 text-orange-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-orange-100 transition border border-orange-200 items-center gap-2"
+                                    >
+                                        <BarChart size={16} /> Dashboard
+                                    </Link>
+                                )}
                                 <div className="text-right border-l border-gray-200 pl-4">
                                     <p className="text-xs text-gray-500 font-medium">Welcome back,</p>
                                     <Link href="/profile" className="block mt-0.5 group">
@@ -155,7 +160,7 @@ export function Navbar() {
                                 </Link>
                             );
                         })}
-                        {isLoggedIn && (
+                        {isLoggedIn && currentUser?.role === "organizer" && (
                             <Link
                                 href="/dashboard"
                                 onClick={() => setIsMobileMenuOpen(false)}

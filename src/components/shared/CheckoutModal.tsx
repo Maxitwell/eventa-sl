@@ -24,13 +24,24 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
     const router = useRouter();
     const [method, setMethod] = useState<"card" | "ussd" | "transfer">("card");
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Guest info state
+    const [guestFirstName, setGuestFirstName] = useState("");
+    const [guestSurname, setGuestSurname] = useState("");
+    const [guestEmail, setGuestEmail] = useState("");
+    const [guestConfirmEmail, setGuestConfirmEmail] = useState("");
+    const [guestPhone, setGuestPhone] = useState("");
 
     const handlePayment = async () => {
-        if (!isLoggedIn || !currentUser) {
-            showToast("You must be logged in to purchase tickets.", "error");
-            onClose();
-            router.push("/login?redirect=/");
-            return;
+        if (!isLoggedIn) {
+            if (!guestFirstName.trim() || !guestSurname.trim() || !guestEmail.trim() || !guestConfirmEmail.trim() || !guestPhone.trim()) {
+                showToast("Please fill in all contact details to receive your tickets.", "error");
+                return;
+            }
+            if (guestEmail.trim().toLowerCase() !== guestConfirmEmail.trim().toLowerCase()) {
+                showToast("Email addresses do not match.", "error");
+                return;
+            }
         }
 
         setIsProcessing(true);
@@ -43,7 +54,7 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                 for (let i = 0; i < item.quantity; i++) {
                     const ticketData = {
                         eventId: item.eventId || "unknown-event",
-                        userId: currentUser.id,
+                        userId: currentUser?.id || `guest_${guestEmail}`,
                         eventName: item.eventName,
                         ticketType: item.ticketName,
                         date: item.eventDate || "TBD",
@@ -52,7 +63,12 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                         purchaseDate: new Date().toISOString(),
                         qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TKT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                         status: "valid" as const,
-                        pricePaid: item.price
+                        pricePaid: item.price,
+                        ...(!isLoggedIn && {
+                            guestName: `${guestFirstName.trim()} ${guestSurname.trim()}`,
+                            guestEmail: guestEmail.trim().toLowerCase(),
+                            guestPhone: guestPhone.trim()
+                        })
                     };
                     ticketPromises.push(createTicket(ticketData));
                 }
@@ -62,7 +78,13 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
 
             clearCart();
             onClose();
-            router.push("/purchase-success");
+            
+            if (!isLoggedIn && guestEmail) {
+                const fullName = `${guestFirstName.trim()} ${guestSurname.trim()}`;
+                router.push(`/purchase-success?guestEmail=${encodeURIComponent(guestEmail.trim().toLowerCase())}&guestName=${encodeURIComponent(fullName)}`);
+            } else {
+                router.push("/purchase-success");
+            }
             showToast("Payment successful! Tickets generated.", "success");
         } catch (error) {
             console.error("Payment error:", error);
@@ -99,6 +121,46 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                         <span>NLe {totalPrice.toLocaleString()}</span>
                     </div>
                 </div>
+
+                {!isLoggedIn && (
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-sm mb-3">
+                            Guest Contact Info <span className="text-gray-500 font-normal text-xs">(to receive your ticket)</span>
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <Input 
+                                placeholder="First Name" 
+                                value={guestFirstName} 
+                                onChange={(e) => setGuestFirstName(e.target.value)} 
+                            />
+                            <Input 
+                                placeholder="Surname" 
+                                value={guestSurname} 
+                                onChange={(e) => setGuestSurname(e.target.value)} 
+                            />
+                        </div>
+                        <div className="space-y-3">
+                            <Input 
+                                placeholder="Email Address" 
+                                type="email" 
+                                value={guestEmail} 
+                                onChange={(e) => setGuestEmail(e.target.value)} 
+                            />
+                            <Input 
+                                placeholder="Confirm Email Address" 
+                                type="email" 
+                                value={guestConfirmEmail} 
+                                onChange={(e) => setGuestConfirmEmail(e.target.value)} 
+                            />
+                            <Input 
+                                placeholder="Phone Number" 
+                                type="tel" 
+                                value={guestPhone} 
+                                onChange={(e) => setGuestPhone(e.target.value)} 
+                            />
+                        </div>
+                    </div>
+                )}
 
                 <div>
                     <h4 className="font-bold text-gray-900 text-sm mb-3 text-center">

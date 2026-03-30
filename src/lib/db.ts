@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, query, where, orderBy, limit, addDoc, runTransaction, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, query, where, orderBy, limit, addDoc, runTransaction, updateDoc, writeBatch, arrayUnion, arrayRemove, documentId } from "firebase/firestore";
 import { db } from "./firebase";
 
 // Types
@@ -52,6 +52,19 @@ export interface TicketEntity {
     qrCode: string;
     status: "valid" | "used" | "refunded";
     pricePaid: number;
+    guestName?: string;
+    guestEmail?: string;
+    guestPhone?: string;
+}
+
+export interface UserEntity {
+    id: string;
+    name: string;
+    email: string;
+    role: "attendee" | "organizer";
+    phoneNumber?: string;
+    savedEvents?: string[];
+    createdAt: string;
 }
 
 // Data Fetching Helpers
@@ -356,5 +369,87 @@ export async function validateTicket(ticketId: string, organizerId: string): Pro
     } catch (error) {
         console.error("Error validating ticket:", error);
         return { success: false, message: "An error occurred during validation." };
+    }
+}
+
+/**
+ * Link previous guest tickets to a newly created account
+ */
+export async function linkGuestTickets(guestEmail: string, newUid: string) {
+    try {
+        const ticketsRef = collection(db, "tickets");
+        const q = query(ticketsRef, where("userId", "==", `guest_${guestEmail}`));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            const batch = writeBatch(db);
+            querySnapshot.forEach((docSnap) => {
+                batch.update(docSnap.ref, { userId: newUid });
+            });
+            await batch.commit();
+        }
+    } catch (error) {
+        console.error("Error linking guest tickets:", error);
+    }
+}
+
+/**
+ * Fetch a User's profile from Firestore
+ */
+export async function getUserProfile(uid: string): Promise<UserEntity | null> {
+    try {
+        const userRef = doc(db, "users", uid);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+            return { id: userDoc.id, ...userDoc.data() } as UserEntity;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching user profile:", error);
+        return null;
+    }
+}
+
+/**
+ * Toggle an event in the user's saved tab
+ */
+export async function toggleSavedEvent(userId: string, eventId: string, isSaving: boolean): Promise<void> {
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, {
+            savedEvents: isSaving ? arrayUnion(eventId) : arrayRemove(eventId)
+        });
+    } catch (error) {
+        console.error("Error toggling saved event:", error);
+    }
+}
+
+/**
+ * Fetch full EventEntities by a list of Document IDs 
+ * Includes chunking to bypass Firebase's 10-item query limit
+ */
+export async function getEventsByIds(eventIds: string[]): Promise<EventEntity[]> {
+    if (!eventIds || eventIds.length === 0) return [];
+    
+    try {
+        const eventsRef = collection(db, "events");
+        const events: EventEntity[] = [];
+        
+        // Chunk into arrays of 10
+        const chunkSize = 10;
+        for (let i = 0; i < eventIds.length; i += chunkSize) {
+            const chunk = eventIds.slice(i, i + chunkSize);
+            const q = query(eventsRef, where(documentId(), "in", chunk));
+            const querySnapshot = await getDocs(q);
+            
+            querySnapshot.forEach((docSnap) => {
+                events.push({ id: docSnap.id, ...docSnap.data() } as EventEntity);
+            });
+        }
+        
+        return events;
+    } catch (error) {
+        console.error("Error fetching saved events:", error);
+        return [];
     }
 }

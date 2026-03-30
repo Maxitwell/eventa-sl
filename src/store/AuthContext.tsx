@@ -20,6 +20,9 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    role?: "attendee" | "organizer";
+    phoneNumber?: string;
+    savedEvents?: string[];
 }
 
 interface AuthContextType {
@@ -27,11 +30,12 @@ interface AuthContextType {
     currentUser: User | null;
     isLoading: boolean;
     loginWithGoogle: () => Promise<void>;
-    loginWithEmail: (email: string, password?: string, isSignup?: boolean, name?: string) => Promise<void>;
+    loginWithEmail: (email: string, password?: string, isSignup?: boolean, name?: string, role?: "attendee" | "organizer", phoneNumber?: string) => Promise<void>;
     loginWithPhone: (phoneNumber: string) => Promise<ConfirmationResult>;
     verifyOTP: (confirmationResult: ConfirmationResult, otp: string) => Promise<void>;
     logout: () => Promise<void>;
     updateProfile: (name: string, avatar?: string) => Promise<void>;
+    updateSavedEventsCache: (eventId: string, isSaving: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,13 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
+                // Dynamically import db functions to avoid circular import issues if any
+                const { getUserProfile } = await import("@/lib/db");
+                const userProfile = await getUserProfile(firebaseUser.uid);
+
                 setCurrentUser({
                     id: firebaseUser.uid,
                     name: firebaseUser.displayName || "Eventa User",
                     email: firebaseUser.email || "",
                     avatar: firebaseUser.photoURL || undefined,
+                    role: userProfile?.role || "attendee", // Default to attendee if no profile
+                    savedEvents: userProfile?.savedEvents || [],
                 });
             } else {
                 setCurrentUser(null);
@@ -68,22 +78,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const loginWithEmail = async (email: string, password?: string, isSignup?: boolean, name?: string) => {
+    const loginWithEmail = async (email: string, password?: string, isSignup?: boolean, name?: string, role: "attendee" | "organizer" = "attendee", phoneNumber?: string) => {
         try {
             if (isSignup && password) {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                
+                // Write user profile to Firestore
+                const { setDoc, doc } = await import("firebase/firestore");
+                const { db } = await import("@/lib/firebase");
+                await setDoc(doc(db, "users", userCredential.user.uid), {
+                    name: name || "Eventa User",
+                    email,
+                    role,
+                    ...(phoneNumber && { phoneNumber }),
+                    savedEvents: [],
+                    createdAt: new Date().toISOString()
+                });
+
                 if (name) {
                     await firebaseUpdateProfile(userCredential.user, { displayName: name });
-                    // Provide optimistic update before listener catches it
-                    setCurrentUser(prev => prev ? { ...prev, name } : null);
                 }
+                
+                // Provide optimistic update before listener catches the firestore fetch
+                setCurrentUser(prev => prev ? { ...prev, name: name || "Eventa User", role, savedEvents: [] } : null);
             } else if (password) {
                 await signInWithEmailAndPassword(auth, email, password);
             } else {
                 throw new Error("Password is required for email login");
             }
         } catch (error) {
-            console.error("Error with email auth", error);
             throw error;
         }
     };
@@ -127,11 +150,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     displayName: name,
                     photoURL: avatar
                 });
+                
+                const { setDoc, doc } = await import("firebase/firestore");
+                const { db } = await import("@/lib/firebase");
+                // Update Firestore as well (merge ensures we don't wipe out role/email)
+                await setDoc(doc(db, "users", auth.currentUser.uid), {
+                    name,
+                }, { merge: true });
+
                 setCurrentUser(prev => prev ? { ...prev, name, avatar } : null);
             } catch (error) {
                 console.error("Error updating profile", error);
             }
         }
+    };
+
+    const updateSavedEventsCache = (eventId: string, isSaving: boolean) => {
+        setCurrentUser(prev => {
+            if (!prev) return prev;
+            const currentSaved = prev.savedEvents || [];
+            if (isSaving && !currentSaved.includes(eventId)) {
+                return { ...prev, savedEvents: [...currentSaved, eventId] };
+            } else if (!isSaving && currentSaved.includes(eventId)) {
+                return { ...prev, savedEvents: currentSaved.filter(id => id !== eventId) };
+            }
+            return prev;
+        });
     };
 
     const isLoggedIn = !!currentUser;
@@ -148,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 verifyOTP,
                 logout,
                 updateProfile,
+                updateSavedEventsCache,
             }}
         >
             {children}
