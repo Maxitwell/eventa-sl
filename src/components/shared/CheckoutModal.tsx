@@ -24,6 +24,7 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
     const router = useRouter();
     const [method, setMethod] = useState<"card" | "ussd" | "transfer">("card");
     const [isProcessing, setIsProcessing] = useState(false);
+    const [ussdPhone, setUssdPhone] = useState("");
     
     // Guest info state
     const [guestFirstName, setGuestFirstName] = useState("");
@@ -47,6 +48,49 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
         setIsProcessing(true);
 
         try {
+            if (method === "ussd") {
+                if (!ussdPhone.trim()) {
+                    showToast("Please enter your Mobile Money number.", "error");
+                    setIsProcessing(false);
+                    return;
+                }
+
+                const response = await fetch("/api/checkout/pawapay", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        amount: totalPrice,
+                        phoneNumber: ussdPhone,
+                        tickets: items,
+                        userId: currentUser?.id,
+                        guestInfo: !isLoggedIn ? {
+                            name: `${guestFirstName.trim()} ${guestSurname.trim()}`,
+                            email: guestEmail.trim().toLowerCase(),
+                            phone: guestPhone.trim()
+                        } : null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to initiate mobile money payment");
+                }
+
+                clearCart();
+                onClose();
+                showToast("Payment prompt sent to your phone! Please enter your PIN.", "success");
+                
+                if (!isLoggedIn && guestEmail) {
+                    const fullName = `${guestFirstName.trim()} ${guestSurname.trim()}`;
+                    router.push(`/purchase-success?guestEmail=${encodeURIComponent(guestEmail.trim().toLowerCase())}&guestName=${encodeURIComponent(fullName)}&pending=true`);
+                } else {
+                    router.push("/purchase-success?pending=true");
+                }
+                return;
+            }
+
+            // Mock generation for 'card' and 'transfer' methods
             const ticketPromises = [];
 
             for (const item of items) {
@@ -214,7 +258,7 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                                 </p>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">+232</span>
-                                    <Input placeholder="77 000 000" className="pl-12" type="tel" />
+                                    <Input placeholder="77 000 000" className="pl-12" type="tel" value={ussdPhone} onChange={(e) => setUssdPhone(e.target.value)} />
                                 </div>
                             </div>
                         )}

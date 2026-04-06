@@ -28,6 +28,7 @@ export interface EventEntity {
     tickets?: EventTicketTier[];
     payoutDetails?: { method: string; accountName: string; accountNumber: string };
     contactSocials?: { email: string; phone: string; whatsapp: string; instagram: string; twitter: string; website: string; facebook: string };
+    doorPin?: string;
 }
 
 export interface EventTicketTier {
@@ -50,7 +51,7 @@ export interface TicketEntity {
     location: string;
     purchaseDate: string;
     qrCode: string;
-    status: "valid" | "used" | "refunded";
+    status: "valid" | "used" | "refunded" | "pending_payment" | "failed_payment";
     pricePaid: number;
     guestName?: string;
     guestEmail?: string;
@@ -219,13 +220,22 @@ export async function getOrganizerEvents(organizerId: string): Promise<EventEnti
 /**
  * Helper to register a newly created event (Organizer flow)
  */
-export async function createEvent(eventData: Omit<EventEntity, "id" | "createdAt" | "ticketsSold">) {
+export async function createEvent(eventData: Omit<EventEntity, "id" | "createdAt" | "ticketsSold" | "doorPin">) {
     try {
         const eventsRef = collection(db, "events");
+        const generateDoorPin = () => {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let pin = '';
+            for (let i = 0; i < 6; i++) {
+                pin += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return pin;
+        };
         const newEvent = {
             ...eventData,
             createdAt: new Date().toISOString(),
-            ticketsSold: 0
+            ticketsSold: 0,
+            doorPin: generateDoorPin()
         };
         const docRef = await addDoc(eventsRef, newEvent);
         return docRef.id;

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/layout/Navbar";
@@ -11,9 +11,19 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#EA580C",
+};
+
 export const metadata: Metadata = {
   title: "Eventa Sierra Leone - Discover & Create",
   description: "Discover the hottest concerts, tech meetups, and beach festivals happening across the country this weekend.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Eventa",
+  },
 };
 
 export default function RootLayout({

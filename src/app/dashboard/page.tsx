@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/store/AuthContext";
 import { useToast } from "@/components/shared/ToastProvider";
-import { Plus, BarChart, Users, Settings, LogOut, Ticket, Heart, MapPin, Calendar, ScanLine } from "lucide-react";
+import { Plus, BarChart, Users, Settings, LogOut, Ticket, Heart, MapPin, Calendar, ScanLine, Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -40,20 +40,6 @@ export default function Dashboard() {
         }
     }, [isLoggedIn, isAuthLoading, router]);
 
-    if (isAuthLoading || !isLoggedIn) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
-    }
-
-    const handleLogout = () => {
-        logout();
-        showToast("Logged out successfully");
-        router.push("/");
-    };
-
     useEffect(() => {
         if (!currentUser) return;
 
@@ -74,6 +60,21 @@ export default function Dashboard() {
 
         fetchEvents();
     }, [currentUser, showToast]);
+
+    if (isAuthLoading || !isLoggedIn) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    const handleLogout = () => {
+        logout();
+        showToast("Logged out successfully");
+        router.push("/");
+    };
+
 
     const handleToggleStatus = async (eventId: string | undefined, currentStatus: string | undefined) => {
         if (!eventId) return;
@@ -243,8 +244,15 @@ export default function Dashboard() {
                                                     </button>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    {event.doorPin && (
+                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-white font-mono text-sm tracking-widest" title="Gatekeeper PIN">
+                                                            <Lock size={14} className="text-orange-500" />
+                                                            {event.doorPin}
+                                                        </div>
+                                                    )}
                                                     <Link
-                                                        href={`/dashboard/check-in?eventId=${event.id}`}
+                                                        href={`/scanner/${event.id}`}
+                                                        target="_blank"
                                                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold"
                                                     >
                                                         <ScanLine size={16} /> Check In User

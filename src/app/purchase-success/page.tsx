@@ -4,7 +4,7 @@ import { useAuth } from "@/store/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { CheckCircle2, Ticket, ArrowRight, Download, Share2, Lock } from "lucide-react";
+import { CheckCircle2, Ticket, ArrowRight, Download, Share2, Lock, Smartphone } from "lucide-react";
 import Confetti from "react-confetti";
 import { useEffect, useState, Suspense } from "react";
 import Image from "next/image";
@@ -22,6 +22,7 @@ function PurchaseSuccessContent() {
     // Post-purchase account creation state
     const guestEmail = searchParams.get("guestEmail");
     const guestName = searchParams.get("guestName") || "";
+    const isPending = searchParams.get("pending") === "true";
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
@@ -92,7 +93,7 @@ function PurchaseSuccessContent() {
 
     return (
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8 text-center relative z-10 w-full">
-            {showConfetti && (
+            {showConfetti && !isPending && (
                 <Confetti
                     width={windowSize.width}
                     height={windowSize.height}
@@ -103,46 +104,55 @@ function PurchaseSuccessContent() {
                 />
             )}
 
-            <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle2 size={40} className="text-green-500" />
+            <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 ${isPending ? 'bg-orange-100' : 'bg-green-100'}`}>
+                {isPending ? (
+                    <Smartphone size={40} className="text-orange-500 animate-pulse" />
+                ) : (
+                    <CheckCircle2 size={40} className="text-green-500" />
+                )}
             </div>
 
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">
-                Payment Successful!
+                {isPending ? "Payment Pending" : "Payment Successful!"}
             </h1>
             <p className="text-gray-500 mb-8">
-                Your tickets have been secured and a copy has been sent to your email.
+                {isPending 
+                    ? "We've sent a prompt to your Mobile Money number. Please enter your PIN to authorize the transaction. Your ticket will be issued once confirmed."
+                    : "Your tickets have been secured and a copy has been sent to your email."
+                }
             </p>
 
             {/* Mock Digital Ticket Stub */}
-            <div className="bg-gray-900 text-white rounded-2xl p-6 text-left mb-8 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            {!isPending && (
+                <div className="bg-gray-900 text-white rounded-2xl p-6 text-left mb-8 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
 
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div>
-                        <p className="text-xs text-orange-400 font-bold uppercase tracking-wider mb-1">Pass Type</p>
-                        <p className="font-bold">Regular Admission</p>
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                        <div>
+                            <p className="text-xs text-orange-400 font-bold uppercase tracking-wider mb-1">Pass Type</p>
+                            <p className="font-bold">Regular Admission</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition backdrop-blur-sm">
+                                <Download size={14} />
+                            </button>
+                            <button className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition backdrop-blur-sm">
+                                <Share2 size={14} />
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition backdrop-blur-sm">
-                            <Download size={14} />
-                        </button>
-                        <button className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition backdrop-blur-sm">
-                            <Share2 size={14} />
-                        </button>
-                    </div>
-                </div>
 
-                <div className="relative w-24 h-24 bg-white p-2 rounded-xl mb-2 z-10 mx-auto mt-4">
-                    <Image
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TKT-SUCCESSFUL-${Date.now()}`}
-                        alt="QR Code"
-                        fill
-                        className="object-contain p-1"
-                    />
+                    <div className="relative w-24 h-24 bg-white p-2 rounded-xl mb-2 z-10 mx-auto mt-4">
+                        <Image
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TKT-SUCCESSFUL-${Date.now()}`}
+                            alt="QR Code"
+                            fill
+                            className="object-contain p-1"
+                        />
+                    </div>
+                    <p className="text-center text-xs text-gray-400 font-mono mt-2 z-10 relative">ID: TKT-{Math.floor(Math.random() * 1000000)}</p>
                 </div>
-                <p className="text-center text-xs text-gray-400 font-mono mt-2 z-10 relative">ID: TKT-{Math.floor(Math.random() * 1000000)}</p>
-            </div>
+            )}
 
             {/* Post-Purchase Account Creation Prompt */}
             {!isLoggedIn && guestEmail && (

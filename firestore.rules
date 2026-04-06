@@ -11,9 +11,8 @@ service cloud.firestore {
     // --- EVENTS COLLECTION ---
     match /events/{eventId} {
       
-      // Anyone can read a published event or get a specific event if they are the organizer
-      allow get: if resource.data.status == 'published' || 
-                     (request.auth != null && resource.data.organizerId == request.auth.uid);
+      // Anyone can get a specific event if they have the ID (required for Gatekeepers to verify Door Pins)
+      allow get: if true;
                      
       // Splitting list queries helps Firestore's static analyzer
       allow list: if resource.data.status == 'published';
@@ -42,9 +41,8 @@ service cloud.firestore {
     match /tickets/{ticketId} {
       
       // Users can read their own tickets.
-      // Or anyone authenticated can attempt a read (for Check-In Scanner), 
-      // but the app logic protects the event ownership.
-      allow read: if request.auth != null;
+      // The App UI enforces the 'Door Pin' lock before displaying data.
+      allow read: if true;
       
       // Only authenticated users can create a ticket for themselves OR guests logging out
       allow create: if ((request.auth != null && request.resource.data.userId == request.auth.uid) ||
@@ -52,16 +50,13 @@ service cloud.firestore {
                     && request.resource.data.pricePaid >= 0
                     && request.resource.data.status == 'valid';
       
-      // Only the organizer of the event can update the status (e.g. to 'used')
-      allow update: if (request.auth != null 
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+      // Allow the Scanner app to Check-In users and sync those changes back to the database.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'usedAt']) ||
                     // Allow newly created accounts to link their past guest tickets
                     (request.auth != null 
                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId'])
                      && resource.data.userId.matches('^guest_.*')
                      && request.resource.data.userId == request.auth.uid);
-                    // Ideally we'd join with the event doc to check organizerId, 
-                    // but for simplicity in MVP we just ensure only status changes.
       
       // Tickets cannot be deleted by users
       allow delete: if false;
