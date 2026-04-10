@@ -78,8 +78,10 @@ export default function Discover() {
 
   const filteredEvents = dbEvents.filter(event => {
     // 1. Text Search (Title or Location)
-    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const title = event.title || "";
+    const loc = event.location || "";
+    const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      loc.toLowerCase().includes(searchQuery.toLowerCase());
 
     // 2. Category
     const matchesCategory = activeCategory === "All" ||
