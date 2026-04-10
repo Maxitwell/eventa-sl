@@ -148,22 +148,28 @@ export default function CreateEvent() {
                     console.error("Image compression failed, uploading original:", compressionError);
                 }
 
-                // Upload safely via backend API route to bypass Firebase Storage CORS restrictions on the live domain
-                const formData = new FormData();
-                formData.append('file', fileToUpload);
-                formData.append('userId', currentUser?.id || 'unknown');
+                try {
+                    // Upload safely via backend API route to bypass Firebase Storage CORS restrictions on the live domain
+                    const formData = new FormData();
+                    formData.append('file', fileToUpload);
+                    formData.append('userId', currentUser?.id || 'unknown');
 
-                const uploadResponse = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
+                    const uploadResponse = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                    });
 
-                if (!uploadResponse.ok) {
-                    throw new Error("Failed to upload image to the server");
+                    if (!uploadResponse.ok) {
+                        throw new Error("Failed to upload image to the server");
+                    }
+                    
+                    const uploadData = await uploadResponse.json();
+                    imageUrl = uploadData.url;
+                } catch (uploadError) {
+                    console.error("Upload failed due to storage limits or CORS:", uploadError);
+                    showToast("Failed to upload custom banner due to account limits. Using default banner.", "error");
+                    // imageUrl retains its fallback unsplash URL
                 }
-                
-                const uploadData = await uploadResponse.json();
-                imageUrl = uploadData.url;
             }
 
             // Format mock date to "Dec 20" style used in EventCard
