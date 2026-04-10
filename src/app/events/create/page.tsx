@@ -141,18 +141,29 @@ export default function CreateEvent() {
                     useWebWorker: true,
                 };
 
+                let fileToUpload = imageFile;
                 try {
-                    const compressedFile = await imageCompression(imageFile, options);
-                    const storageRef = ref(storage, `events/${currentUser?.id}/${Date.now()}_${compressedFile.name}`);
-                    const snapshot = await uploadBytes(storageRef, compressedFile);
-                    imageUrl = await getDownloadURL(snapshot.ref);
+                    fileToUpload = await imageCompression(imageFile, options);
                 } catch (compressionError) {
                     console.error("Image compression failed, uploading original:", compressionError);
-                    // Fallback to original if compression fails
-                    const storageRef = ref(storage, `events/${currentUser?.id}/${Date.now()}_${imageFile.name}`);
-                    const snapshot = await uploadBytes(storageRef, imageFile);
-                    imageUrl = await getDownloadURL(snapshot.ref);
                 }
+
+                // Upload safely via backend API route to bypass Firebase Storage CORS restrictions on the live domain
+                const formData = new FormData();
+                formData.append('file', fileToUpload);
+                formData.append('userId', currentUser?.id || 'unknown');
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error("Failed to upload image to the server");
+                }
+                
+                const uploadData = await uploadResponse.json();
+                imageUrl = uploadData.url;
             }
 
             // Format mock date to "Dec 20" style used in EventCard
