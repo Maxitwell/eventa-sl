@@ -149,7 +149,7 @@ export default function CheckInPage() {
                             <Input
                                 placeholder="Enter Ticket ID (e.g. TKT-12345)"
                                 value={ticketIdInput}
-                                onChange={(e) => setTicketIdInput(e.target.value)}
+                                onChange={(e: any) => setTicketIdInput(e.target.value)}
                                 className="w-full text-lg py-4"
                                 autoFocus
                             />

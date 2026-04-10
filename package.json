@@ -12,9 +12,11 @@
     "node": "20.x"
   },
   "dependencies": {
-
+    "@serwist/next": "^9.5.7",
+    "@serwist/turbopack": "^9.5.7",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
+    "esbuild": "^0.28.0",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.7.0",
     "framer-motion": "^12.34.3",
@@ -28,6 +30,7 @@
     "react-confetti": "^6.4.0",
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.6",
+    "serwist": "^9.5.7",
     "tailwind-merge": "^3.5.0",
     "twilio": "^5.12.2"
   },

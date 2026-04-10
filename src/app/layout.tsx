@@ -4,6 +4,7 @@ import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ChatWidget } from "@/components/layout/ChatWidget";
+import { SerwistProvider } from "./serwist";
 import "./globals.css";
 
 const inter = Inter({
@@ -34,14 +35,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning className={`${inter.variable} antialiased bg-gray-50 text-gray-900 pb-20 relative min-h-screen flex flex-col`}>
-        <Providers>
-          <Navbar />
-          <main className="flex-1 relative w-full overflow-x-hidden">
-            {children}
-          </main>
-          <Footer />
-          <ChatWidget />
-        </Providers>
+        <SerwistProvider swUrl="/serwist/sw.js">
+          <Providers>
+            <Navbar />
+            <main className="flex-1 relative w-full overflow-x-hidden">
+              {children}
+            </main>
+            <Footer />
+            <ChatWidget />
+          </Providers>
+        </SerwistProvider>
       </body>
     </html>
   );
