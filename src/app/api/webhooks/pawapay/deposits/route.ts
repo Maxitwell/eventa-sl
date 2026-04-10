@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { sendTicketEmail } from '@/lib/delivery';export async function POST(request: Request) {
+import { sendTicketEmail } from '@/lib/delivery';
+
+export async function POST(request: Request) {
     try {
         const body = await request.json();
         

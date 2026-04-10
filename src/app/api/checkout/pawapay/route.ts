@@ -3,11 +3,28 @@ import { adminDb } from '@/lib/firebase-admin';
 import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 
+type CheckoutTicketItem = {
+    quantity: number;
+    eventId: string;
+    eventName: string;
+    ticketName: string;
+    eventDate?: string;
+    eventTime?: string;
+    eventLocation?: string;
+    price: number;
+};
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         
-        const { amount, phoneNumber, tickets, guestInfo, userId } = body;
+        const { amount, phoneNumber, tickets, guestInfo, userId } = body as {
+            amount: number;
+            phoneNumber: string;
+            tickets: CheckoutTicketItem[];
+            guestInfo?: { email?: string; name?: string; phone?: string };
+            userId?: string;
+        };
 
         if (!amount || !phoneNumber) {
             return NextResponse.json({ error: 'Missing required payment details' }, { status: 400 });
@@ -71,7 +88,7 @@ export async function POST(request: Request) {
 
         // 1. INVENTORY SOFT-LOCK VALIDATION
         // Before creating tickets, verify the event isn't sold out
-        const totalTicketsRequested = tickets.reduce((acc: number, item: any) => acc + item.quantity, 0);
+        const totalTicketsRequested = tickets.reduce((acc: number, item: CheckoutTicketItem) => acc + item.quantity, 0);
 
         try {
             await adminDb.runTransaction(async (t) => {
@@ -79,7 +96,7 @@ export async function POST(request: Request) {
                 if (!eventDoc.exists) throw new Error("Event not found");
 
                 const eventData = eventDoc.data();
-                const capacity = eventData?.capacity || 0;
+                const capacity = eventData?.totalCapacity ?? eventData?.capacity ?? 0;
                 const ticketsSold = eventData?.ticketsSold || 0;
                 
                 // Allow a tiny bit of overbooking tolerance if pending, but generally reject if hard maxed out
@@ -89,8 +106,9 @@ export async function POST(request: Request) {
 
                 // If safe, we proceed! The transaction implicitly clears without writing, just a read-lock verification.
             });
-        } catch (err: any) {
-            return NextResponse.json({ error: err.message }, { status: 400 });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Event capacity check failed';
+            return NextResponse.json({ error: message }, { status: 400 });
         }
 
         // 2. SECURE QR CODE GENERATION & BATCH INSERT

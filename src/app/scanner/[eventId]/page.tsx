@@ -6,6 +6,7 @@ import { getEventById, EventEntity, TicketEntity } from "@/lib/db";
 import { db } from "@/lib/firebase";
 import { doc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { Lock, ScanLine, List, CheckCircle2, XCircle, Search, User, Filter } from "lucide-react";
+import type { Html5Qrcode } from "html5-qrcode";
 
 export default function ScannerTerminal() {
     const params = useParams();
@@ -25,7 +26,7 @@ export default function ScannerTerminal() {
     const [cameraStarted, setCameraStarted] = useState(false);
 
     // Hold the scanner instance in a ref — dynamically imported to avoid SSR crash
-    const scannerRef = useRef<any>(null);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
 
     // Initial Auth Check
     useEffect(() => {
@@ -56,7 +57,13 @@ export default function ScannerTerminal() {
             const eventData = await getEventById(eventId);
             if (!eventData) throw new Error("Event not found");
 
-            if (!eventData.doorPin || eventData.doorPin === pin) {
+            if (!eventData.doorPin) {
+                if (!isSilent) setAuthError("Scanner is not configured for this event yet. Ask the organizer to set a Gate Pin.");
+                localStorage.removeItem(`event_pin_${eventId}`);
+                return;
+            }
+
+            if (eventData.doorPin === pin) {
                 localStorage.setItem(`event_pin_${eventId}`, pin);
                 setEvent(eventData);
                 setIsAuthenticated(true);
@@ -64,7 +71,7 @@ export default function ScannerTerminal() {
                 if (!isSilent) setAuthError("Invalid Door Pin");
                 localStorage.removeItem(`event_pin_${eventId}`);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             if (!isSilent) setAuthError("Failed to connect. Check internet if logging in for the first time.");
         }
     };
@@ -137,9 +144,10 @@ export default function ScannerTerminal() {
             setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: "used" } : t));
             triggerUX(true);
             setScanResult({ status: "success", message: `Admitted: ${targetTicket.guestName || "Guest"} (${targetTicket.ticketType})` });
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Unknown error";
             triggerUX(false);
-            setScanResult({ status: "error", message: `Database error: ${err.message}` });
+            setScanResult({ status: "error", message: `Database error: ${message}` });
         }
     };
 
@@ -167,7 +175,7 @@ export default function ScannerTerminal() {
                 },
                 (_errorMessage: string) => { /* Ignore per-frame parse errors */ }
             );
-        } catch (err) {
+        } catch (err: unknown) {
             console.error("Camera start error", err);
             setScanResult({ status: "error", message: "Could not access Camera. Check browser permissions." });
         }
