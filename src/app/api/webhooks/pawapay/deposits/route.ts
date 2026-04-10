@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { sendTicketEmail } from '@/lib/delivery';
 
 export async function POST(request: Request) {
     try {
+        const adminDb = getAdminDb();
         const body = await request.json();
         
         // PawaPay deposit webhook payload structure usually includes depositId and status

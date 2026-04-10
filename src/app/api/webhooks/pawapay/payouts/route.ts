@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 export async function POST(request: Request) {
     try {
+        const adminDb = getAdminDb();
         const body = await request.json();
         
         // e.g. { payoutId: "...", status: "COMPLETED", ... }

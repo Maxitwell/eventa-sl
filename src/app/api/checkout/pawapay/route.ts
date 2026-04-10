@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 
@@ -16,6 +16,7 @@ type CheckoutTicketItem = {
 
 export async function POST(request: Request) {
     try {
+        const adminDb = getAdminDb();
         const body = await request.json();
         
         const { amount, phoneNumber, tickets, guestInfo, userId } = body as {
