@@ -148,27 +148,28 @@ export default function CreateEvent() {
                     console.error("Image compression failed, uploading original:", compressionError);
                 }
 
-                try {
-                    // Upload safely via backend API route to bypass Firebase Storage CORS restrictions on the live domain
-                    const formData = new FormData();
-                    formData.append('file', fileToUpload);
-                    formData.append('userId', currentUser?.id || 'unknown');
+                // Upload safely via backend API route
+                const formData = new FormData();
+                formData.append('file', fileToUpload);
+                formData.append('userId', currentUser?.id || 'unknown');
 
+                try {
                     const uploadResponse = await fetch('/api/upload', {
                         method: 'POST',
                         body: formData,
                     });
 
                     if (!uploadResponse.ok) {
-                        throw new Error("Failed to upload image to the server");
+                        console.warn("Storage limits reached: Banner upload bypassed.");
+                        showToast("Account storage limits reached. Using default placeholder banner.", "error");
+                        // imageUrl retains its fallback unsplash URL
+                    } else {
+                        const uploadData = await uploadResponse.json();
+                        imageUrl = uploadData.url;
                     }
-                    
-                    const uploadData = await uploadResponse.json();
-                    imageUrl = uploadData.url;
-                } catch (uploadError) {
-                    console.error("Upload failed due to storage limits or CORS:", uploadError);
-                    showToast("Failed to upload custom banner due to account limits. Using default banner.", "error");
-                    // imageUrl retains its fallback unsplash URL
+                } catch (networkError) {
+                    console.warn("Network error during upload:", networkError);
+                    showToast("Failed to upload custom banner. Using default banner.", "error");
                 }
             }
 
