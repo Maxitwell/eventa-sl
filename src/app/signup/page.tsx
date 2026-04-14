@@ -76,7 +76,7 @@ function SignupContent() {
             const fullName = `${firstName.trim()} ${surname.trim()}`;
             await loginWithEmail(email, password, true, fullName, role, phoneNumber);
             
-            fetch("/api/auth/welcome", {
+            await fetch("/api/auth/welcome", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: email, name: fullName })
