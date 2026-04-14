@@ -42,7 +42,7 @@ export default function Discover() {
 
   useEffect(() => {
     fetchInitialEvents();
-  }, [showToast]);
+  }, []);
 
   const loadMoreEvents = async () => {
     if (!hasMore || isLoadingMore) return;

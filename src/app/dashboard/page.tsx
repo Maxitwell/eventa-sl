@@ -59,7 +59,7 @@ export default function Dashboard() {
         };
 
         fetchEvents();
-    }, [currentUser, showToast]);
+    }, [currentUser]);
 
     if (isAuthLoading || !isLoggedIn) {
         return (

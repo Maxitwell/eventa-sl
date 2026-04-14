@@ -39,7 +39,7 @@ export default function EventDetailsPage() {
         };
 
         fetchEvent();
-    }, [params.id, router, showToast]);
+    }, [params.id, router]);
 
     if (isLoading) {
         return (

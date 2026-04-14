@@ -150,7 +150,7 @@ export default function EditEvent() {
         if (currentUser) {
             fetchEvent();
         }
-    }, [isLoggedIn, params.id, currentUser, router, showToast]);
+    }, [isLoggedIn, params.id, currentUser, router]);
 
     if (!isLoggedIn) {
         return null; // Next.js will redirect

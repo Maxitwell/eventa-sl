@@ -139,9 +139,16 @@ export async function POST(request: Request) {
                 const capacity = ed?.totalCapacity ?? ed?.capacity ?? 0;
                 const ticketsSold = ed?.ticketsSold || 0;
 
-                const activeResQuery = await t.get(reservationsRef.where('eventId', '==', eventId).where('expiresAt', '>', new Date().toISOString()));
+                const activeResQuery = await t.get(reservationsRef.where('eventId', '==', eventId));
+                const nowIso = new Date().toISOString();
                 let reservedCount = 0;
-                activeResQuery.forEach(doc => { reservedCount += doc.data().quantity || 0; });
+                activeResQuery.forEach(doc => {
+                    const data = doc.data();
+                    // Filter in-memory — avoids composite index requirement
+                    if (data.expiresAt > nowIso) {
+                        reservedCount += data.quantity || 0;
+                    }
+                });
 
                 if (ticketsSold + reservedCount + totalTicketsRequested > capacity + 5) {
                     throw new Error("Event capacity reached or tickets temporarily reserved by others. Please try again soon.");

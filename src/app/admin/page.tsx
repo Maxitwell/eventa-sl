@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/store/AuthContext";
 import { useToast } from "@/components/shared/ToastProvider";
 import { BarChart, Users, Activity, LogOut, Ticket, Lock, LogIn, DollarSign } from "lucide-react";
@@ -20,20 +20,26 @@ export default function AdminDashboard() {
     const [events, setEvents] = useState<EventEntity[]>([]);
     const [orders, setOrders] = useState<OrderEntity[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const accessDeniedFired = useRef(false);
 
     useEffect(() => {
-        if (!isAuthLoading) {
-            if (!isLoggedIn) {
-                router.push("/login?redirect=/admin");
-            } else if (currentUser?.email !== ADMIN_EMAIL) {
-                showToast("Access Denied: Missing Super Admin Privilege", "error");
-                router.push("/");
-            }
+        // Wait for auth to fully resolve before making any access decisions
+        if (isAuthLoading) return;
+
+        if (!isLoggedIn) {
+            router.push("/login?redirect=/admin");
+        } else if (currentUser && currentUser.email !== ADMIN_EMAIL && !accessDeniedFired.current) {
+            // Only fire when currentUser is confirmed non-null — avoids false positives
+            // during the brief window where auth is resolved but user object not yet set
+            accessDeniedFired.current = true;
+            showToast("Access Denied: Missing Super Admin Privilege", "error");
+            router.push("/");
         }
     }, [isLoggedIn, isAuthLoading, currentUser, router, showToast]);
 
+    const currentUserEmail = currentUser?.email;
     useEffect(() => {
-        if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
+        if (!currentUserEmail || currentUserEmail !== ADMIN_EMAIL) return;
 
         const fetchData = async () => {
             setIsLoadingData(true);
@@ -54,7 +60,7 @@ export default function AdminDashboard() {
         };
 
         fetchData();
-    }, [currentUser, showToast]);
+    }, [currentUserEmail]);
 
     if (isAuthLoading || !isLoggedIn || currentUser?.email !== ADMIN_EMAIL) {
         return (
