@@ -1,17 +1,27 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
+const ticketsTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.zoho.com',
     port: 465,
     secure: true,
     auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.SMTP_TICKETS_USER || process.env.SMTP_USER,
+        pass: process.env.SMTP_TICKETS_PASS || process.env.SMTP_PASS,
+    },
+});
+
+const supportTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.zoho.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.SMTP_SUPPORT_USER || process.env.SMTP_USER,
+        pass: process.env.SMTP_SUPPORT_PASS || process.env.SMTP_PASS,
     },
 });
 
 export async function sendTicketEmail(guestEmail: string, guestName: string, eventName: string, qrCodeDataUrl: string) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    if (!(process.env.SMTP_TICKETS_USER || process.env.SMTP_USER) || !(process.env.SMTP_TICKETS_PASS || process.env.SMTP_PASS)) {
         console.error("Missing SMTP credentials in .env.local");
         return false;
     }
@@ -40,8 +50,8 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
     `;
 
     try {
-        await transporter.sendMail({
-            from: `"Eventa Tickets" <tickets@eventa.africa>`,
+        await ticketsTransporter.sendMail({
+            from: `"Eventa Tickets" <${process.env.SMTP_TICKETS_USER || process.env.SMTP_USER || 'tickets@eventa.africa'}>`,
             to: guestEmail,
             subject: `Your Ticket for ${eventName}`,
             html: htmlContent,
@@ -55,8 +65,8 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
 }
 
 export async function sendSignupEmail(userEmail: string, userName: string) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.error("Missing SMTP credentials in .env.local");
+    if (!(process.env.SMTP_SUPPORT_USER || process.env.SMTP_USER) || !(process.env.SMTP_SUPPORT_PASS || process.env.SMTP_PASS)) {
+        console.error("Missing SMTP credentials for support emails in .env.local");
         return false;
     }
 
@@ -77,8 +87,8 @@ export async function sendSignupEmail(userEmail: string, userName: string) {
     `;
 
     try {
-        await transporter.sendMail({
-            from: `"Eventa Support" <support@eventa.africa>`,
+        await supportTransporter.sendMail({
+            from: `"Eventa Support" <${process.env.SMTP_SUPPORT_USER || process.env.SMTP_USER || 'support@eventa.africa'}>`,
             to: userEmail,
             subject: `Welcome to Eventa!`,
             html: htmlContent,
