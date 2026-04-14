@@ -248,9 +248,9 @@ function LoginContent() {
                     {/* Footer legal copy */}
                     <p className="mt-8 text-center text-sm text-gray-500">
                         By signing in, you agree to our{" "}
-                        <a href="#" className="text-orange-600 font-semibold hover:underline">Terms</a>{" "}
+                        <Link href="/terms" className="text-orange-600 font-semibold hover:underline">Terms</Link>{" "}
                         and{" "}
-                        <a href="#" className="text-orange-600 font-semibold hover:underline">Privacy Policy</a>.
+                        <Link href="/privacy" className="text-orange-600 font-semibold hover:underline">Privacy Policy</Link>.
                     </p>
                 </div>
             </main>

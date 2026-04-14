@@ -1,5 +1,4 @@
 import React from 'react';
-import { Navbar } from '@/components/layout/Navbar';
 import { Fraunces, DM_Sans } from 'next/font/google';
 
 const fraunces = Fraunces({ subsets: ['latin'], weight: ['300', '400', '500'] });
@@ -7,9 +6,7 @@ const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500'] });
 
 export default function PrivacyPage() {
     return (
-        <div className={`min-h-screen bg-[#faf8f4] text-[#0f0e0d] flex flex-col ${dmSans.className} text-[15px] leading-relaxed font-light antialiased`}>
-            <Navbar />
-            
+        <div className={`min-h-screen bg-[#faf8f4] text-[#0f0e0d] flex flex-col ${dmSans.className} text-[15px] leading-relaxed font-light antialiased pt-1`}>
             {/* Hero Section */}
             <div className="bg-[#0f0e0d] text-[#faf8f4] relative overflow-hidden px-6 md:px-20 py-16 md:py-24">
                 {/* Decorative Circles */}
@@ -307,14 +304,6 @@ export default function PrivacyPage() {
 
             </main>
 
-            <footer className="bg-[#0f0e0d] text-[#7a746c] px-6 md:px-20 py-8 text-[12px] flex justify-between items-center flex-wrap gap-3 border-t-2 border-orange-500 mt-auto">
-                <span>Last updated: April 2026 · Eventa is operated in Sierra Leone</span>
-                <div className="flex gap-5 flex-wrap">
-                    <a href="/terms" className="text-[#faf8f4] hover:text-orange-500 transition-colors">Terms &amp; Conditions</a>
-                    <a href="/refunds" className="text-[#faf8f4] hover:text-orange-500 transition-colors">Refund Policy</a>
-                    <a href="#" className="text-[#faf8f4] hover:text-orange-500 transition-colors">Contact via WhatsApp</a>
-                </div>
-            </footer>
         </div>
     );
 }
