@@ -2,11 +2,17 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { getEventById, EventEntity, TicketEntity } from "@/lib/db";
-import { db } from "@/lib/firebase";
-import { doc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { Lock, ScanLine, List, CheckCircle2, XCircle, Search, User, Filter } from "lucide-react";
 import type { Html5Qrcode } from "html5-qrcode";
+
+type TicketEntity = {
+    id: string;
+    eventId: string;
+    ticketType?: string;
+    status: "valid" | "used" | "refunded" | "pending_payment" | "failed_payment";
+    guestName?: string;
+    guestEmail?: string;
+};
 
 export default function ScannerTerminal() {
     const params = useParams();
@@ -16,8 +22,9 @@ export default function ScannerTerminal() {
     const [pinInput, setPinInput] = useState("");
     const [authError, setAuthError] = useState("");
 
-    const [event, setEvent] = useState<EventEntity | null>(null);
+    const [event, setEvent] = useState<{ id: string; title: string } | null>(null);
     const [tickets, setTickets] = useState<TicketEntity[]>([]);
+    const [sessionToken, setSessionToken] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [filterVIP, setFilterVIP] = useState(false);
 
@@ -30,18 +37,24 @@ export default function ScannerTerminal() {
 
     // Initial Auth Check
     useEffect(() => {
-        const storedPin = localStorage.getItem(`event_pin_${eventId}`);
-        if (storedPin) {
-            handleLogin(storedPin, true);
+        const storedToken = localStorage.getItem(`scanner_token_${eventId}`);
+        if (storedToken) {
+            setSessionToken(storedToken);
+            setIsAuthenticated(true);
         }
     }, [eventId]);
 
     // Load Data once Authenticated
     useEffect(() => {
         if (isAuthenticated) {
-            loadEventData();
+            loadEventData().catch(() => {
+                setAuthError("Scanner session expired. Please enter Door Pin again.");
+                localStorage.removeItem(`scanner_token_${eventId}`);
+                setSessionToken("");
+                setIsAuthenticated(false);
+            });
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, eventId, sessionToken]);
 
     // Cleanup camera on unmount
     useEffect(() => {
@@ -54,37 +67,38 @@ export default function ScannerTerminal() {
 
     const handleLogin = async (pin: string, isSilent = false) => {
         try {
-            const eventData = await getEventById(eventId);
-            if (!eventData) throw new Error("Event not found");
-
-            if (!eventData.doorPin) {
-                if (!isSilent) setAuthError("Scanner is not configured for this event yet. Ask the organizer to set a Gate Pin.");
-                localStorage.removeItem(`event_pin_${eventId}`);
+            const response = await fetch("/api/scanner/session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ eventId, pin }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                if (!isSilent) setAuthError(data.error || "Invalid Door Pin");
+                localStorage.removeItem(`scanner_token_${eventId}`);
                 return;
             }
-
-            if (eventData.doorPin === pin) {
-                localStorage.setItem(`event_pin_${eventId}`, pin);
-                setEvent(eventData);
-                setIsAuthenticated(true);
-            } else {
-                if (!isSilent) setAuthError("Invalid Door Pin");
-                localStorage.removeItem(`event_pin_${eventId}`);
-            }
-        } catch (err: unknown) {
+            localStorage.setItem(`scanner_token_${eventId}`, data.token);
+            setSessionToken(data.token);
+            setEvent(data.event);
+            setIsAuthenticated(true);
+        } catch {
             if (!isSilent) setAuthError("Failed to connect. Check internet if logging in for the first time.");
         }
     };
 
     const loadEventData = async () => {
-        const ticketsRef = collection(db, "tickets");
-        const q = query(ticketsRef, where("eventId", "==", eventId));
-        const snapshot = await getDocs(q);
-        const loaded: TicketEntity[] = [];
-        snapshot.forEach(docSnap => {
-            loaded.push({ id: docSnap.id, ...docSnap.data() } as TicketEntity);
+        if (!sessionToken) return;
+        const response = await fetch(`/api/scanner/tickets?eventId=${encodeURIComponent(eventId)}`, {
+            headers: {
+                Authorization: `Bearer ${sessionToken}`,
+            },
         });
-        setTickets(loaded);
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to load tickets");
+        }
+        setTickets(data.tickets || []);
     };
 
     const triggerUX = (isSuccess: boolean) => {
@@ -114,36 +128,32 @@ export default function ScannerTerminal() {
             }
             // Fallback: treat the raw text as a ticket ID
             await attemptAdmit(decodedText);
-        } catch (err) {
+        } catch {
             await attemptAdmit(decodedText);
         }
     };
 
     const attemptAdmit = async (ticketId: string) => {
-        const ticketRef = doc(db, "tickets", ticketId);
         try {
-            const targetTicket = tickets.find(t => t.id === ticketId);
+            if (!sessionToken) throw new Error("Scanner session expired");
+            const response = await fetch("/api/scanner/admit", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${sessionToken}`,
+                },
+                body: JSON.stringify({ eventId, ticketId }),
+            });
+            const data = await response.json();
 
-            if (!targetTicket) {
+            if (!response.ok || !data.ok) {
                 triggerUX(false);
-                setScanResult({ status: "error", message: "Ticket not found in system." });
+                setScanResult({ status: "error", message: data.message || data.error || "Ticket validation failed." });
                 return;
             }
-            if (targetTicket.status === "used") {
-                triggerUX(false);
-                setScanResult({ status: "error", message: `Already Scanned! (${targetTicket.guestName || 'Guest'})` });
-                return;
-            }
-            if (targetTicket.status !== "valid") {
-                triggerUX(false);
-                setScanResult({ status: "error", message: `Ticket is ${targetTicket.status.toUpperCase()}` });
-                return;
-            }
-
-            await updateDoc(ticketRef, { status: "used", usedAt: new Date().toISOString() });
-            setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: "used" } : t));
+            setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status: "used" } : t)));
             triggerUX(true);
-            setScanResult({ status: "success", message: `Admitted: ${targetTicket.guestName || "Guest"} (${targetTicket.ticketType})` });
+            setScanResult({ status: "success", message: data.message || "Admitted" });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Unknown error";
             triggerUX(false);

@@ -53,6 +53,7 @@ function SignupContent() {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [otp, setOtp] = useState("");
     const [confirmationResult, setConfirmationResult] = useState<any>(null);
+    const [agreeTerms, setAgreeTerms] = useState(false);
 
     const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, updateProfile, isLoggedIn, isLoading: isAuthLoading, currentUser } = useAuth();
     const router = useRouter();
@@ -67,12 +68,20 @@ function SignupContent() {
 
     const handleEmailSignup = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!agreeTerms) { alert("You must agree to the Terms and Privacy Policy."); return; }
         if (email !== confirmEmail) { alert("Email addresses do not match."); return; }
         if (password !== confirmPassword) { alert("Passwords do not match."); return; }
         setIsLoading(true);
         try {
             const fullName = `${firstName.trim()} ${surname.trim()}`;
             await loginWithEmail(email, password, true, fullName, role, phoneNumber);
+            
+            fetch("/api/auth/welcome", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: email, name: fullName })
+            }).catch(console.error);
+
             const dynamicRedirect = searchParams.get("redirect") || (role === "organizer" ? "/dashboard" : "/");
             router.push(dynamicRedirect);
         } catch (error) {
@@ -82,12 +91,14 @@ function SignupContent() {
     };
 
     const handleGoogleSignup = async () => {
+        if (!agreeTerms) { alert("You must agree to the Terms and Privacy Policy."); return; }
         setIsLoading(true);
         try { await loginWithGoogle(); } catch { setIsLoading(false); }
     };
 
     const handleSendOTP = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!agreeTerms) { alert("You must agree to the Terms and Privacy Policy."); return; }
         setIsLoading(true);
         try {
             const formattedPhone = phoneNumber.startsWith("+") ? phoneNumber : `+232${phoneNumber.replace(/^0+/, "")}`;
@@ -331,13 +342,22 @@ function SignupContent() {
                         </form>
                     )}
 
-                    {/* Footer legal copy */}
-                    <p className="mt-8 text-center text-sm text-gray-500">
-                        By signing up, you agree to our{" "}
-                        <a href="#" className="text-orange-600 font-semibold hover:underline">Terms</a>{" "}
-                        and{" "}
-                        <a href="#" className="text-orange-600 font-semibold hover:underline">Privacy Policy</a>.
-                    </p>
+                    {/* Footer legal copy checkbox */}
+                    <div className="mt-8 flex items-start gap-2 max-w-sm mx-auto text-sm text-gray-500">
+                        <input 
+                            type="checkbox" 
+                            id="termsCheckbox"
+                            checked={agreeTerms}
+                            onChange={(e) => setAgreeTerms(e.target.checked)}
+                            className="mt-1 w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                        />
+                        <label htmlFor="termsCheckbox" className="flex-1 cursor-pointer">
+                            By signing up, I agree to the{" "}
+                            <Link href="/terms" target="_blank" className="text-orange-600 font-semibold hover:underline">Terms</Link>,{" "}
+                            <Link href="/privacy" target="_blank" className="text-orange-600 font-semibold hover:underline">Privacy Policy</Link>, and{" "}
+                            <Link href="/refunds" target="_blank" className="text-orange-600 font-semibold hover:underline">Refund Policy</Link>.
+                        </label>
+                    </div>
 
                     {/* Sign in link */}
                     <p className="mt-4 text-center text-sm text-gray-500">

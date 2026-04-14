@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getAdminStorage } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminStorage } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
     try {
+        const authHeader = request.headers.get("authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const idToken = authHeader.slice("Bearer ".length);
+        const decoded = await getAdminAuth().verifyIdToken(idToken);
+
         const formData = await request.formData();
         const file = formData.get('file') as File;
-        const userId = formData.get('userId') as string;
+        const userId = decoded.uid;
         
-        if (!file || !userId) {
-            return NextResponse.json({ error: 'Missing file or userId' }, { status: 400 });
+        if (!file) {
+            return NextResponse.json({ error: 'Missing file' }, { status: 400 });
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());

@@ -2,6 +2,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEventOrganizer(eventId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/events/$(eventId)).data.organizerId == request.auth.uid;
+    }
     
     // Default: Deny all
     match /{document=**} {
@@ -39,24 +47,20 @@ service cloud.firestore {
 
     // --- TICKETS COLLECTION ---
     match /tickets/{ticketId} {
-      
-      // Users can read their own tickets.
-      // The App UI enforces the 'Door Pin' lock before displaying data.
-      allow read: if true;
-      
-      // Only authenticated users can create a ticket for themselves OR guests logging out
-      allow create: if ((request.auth != null && request.resource.data.userId == request.auth.uid) ||
-                        (request.resource.data.userId.matches('^guest_.*')))
-                    && request.resource.data.pricePaid >= 0
-                    && request.resource.data.status == 'valid';
-      
-      // Allow the Scanner app to Check-In users and sync those changes back to the database.
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'usedAt']) ||
-                    // Allow newly created accounts to link their past guest tickets
-                    (request.auth != null 
-                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId'])
-                     && resource.data.userId.matches('^guest_.*')
-                     && request.resource.data.userId == request.auth.uid);
+
+      // Strict ticket privacy: only owner or event organizer can read.
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
+                  isEventOrganizer(resource.data.eventId);
+
+      // Ticket minting must happen server-side via Admin SDK.
+      allow create: if false;
+
+      // Prevent client-side check-in and status mutation.
+      // Only allow guest-account linking by authenticated owner.
+      allow update: if isSignedIn()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId'])
+                    && resource.data.userId.matches('^guest_.*')
+                    && request.resource.data.userId == request.auth.uid;
       
       // Tickets cannot be deleted by users
       allow delete: if false;

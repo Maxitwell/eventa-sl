@@ -41,7 +41,7 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
 
     try {
         await transporter.sendMail({
-            from: `"Eventa Tickets" <${process.env.SMTP_USER}>`,
+            from: `"Eventa Tickets" <tickets@eventa.africa>`,
             to: guestEmail,
             subject: `Your Ticket for ${eventName}`,
             html: htmlContent,
@@ -50,6 +50,43 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
         return true;
     } catch (error) {
         console.error(`[Email Delivery Error] Failed to send to ${guestEmail}:`, error);
+        return false;
+    }
+}
+
+export async function sendSignupEmail(userEmail: string, userName: string) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.error("Missing SMTP credentials in .env.local");
+        return false;
+    }
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+            <div style="background-color: #111827; padding: 20px; text-align: center;">
+                <h1 style="color: #f97316; margin: 0; font-size: 24px;">Welcome to EVENTA SL</h1>
+            </div>
+            <div style="padding: 30px;">
+                <h2 style="color: #111827; font-size: 20px; margin-top: 0;">Hi ${userName},</h2>
+                <p style="color: #4b5563; line-height: 1.6;">Thank you for joining the Eventa platform. Your account has been successfully created.</p>
+                <p style="color: #4b5563; line-height: 1.6;">You can now purchase tickets, build events, and experience the best of Sierra Leone.</p>
+            </div>
+            <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+                © 2026 Eventa Africa. All rights reserved.
+            </div>
+        </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: `"Eventa Support" <support@eventa.africa>`,
+            to: userEmail,
+            subject: `Welcome to Eventa!`,
+            html: htmlContent,
+        });
+        console.log(`[Email Delivery] Signup confirmation sent to ${userEmail}`);
+        return true;
+    } catch (error) {
+        console.error(`[Email Delivery Error] Failed to send signup email to ${userEmail}:`, error);
         return false;
     }
 }

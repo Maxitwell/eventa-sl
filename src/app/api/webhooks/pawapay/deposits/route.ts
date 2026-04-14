@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { sendTicketEmail } from '@/lib/delivery';
+import { assertWebhookSecret, isWebhookReplay } from '@/lib/webhook-security';
 
 export async function POST(request: Request) {
     try {
+        if (!assertWebhookSecret(request.headers.get("x-webhook-secret"))) {
+            return NextResponse.json({ error: 'Unauthorized webhook' }, { status: 401 });
+        }
+
         const adminDb = getAdminDb();
         const body = await request.json();
         
@@ -13,6 +18,10 @@ export async function POST(request: Request) {
 
         if (!depositId || !status) {
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+        }
+        const isReplay = await isWebhookReplay(`deposit:${depositId}:${status}`);
+        if (isReplay) {
+            return NextResponse.json({ success: true, message: 'Duplicate webhook ignored' });
         }
 
         console.log(`[PawaPay Webhook] Deposit ${depositId} status changed to ${status}`);
@@ -54,6 +63,30 @@ export async function POST(request: Request) {
 
         // We use a batch so all tickets mark as valid at once
         await batch.commit();
+
+        try {
+            await adminDb.collection('reservations').doc(depositId).delete();
+        } catch (err) {
+            console.error("Failed to delete cleared reservation:", err);
+        }
+
+        const orderRef = adminDb.collection("orders").doc(depositId);
+        const orderSnap = await orderRef.get();
+        if (orderSnap.exists) {
+            if (status === "COMPLETED") {
+                await orderRef.update({
+                    status: "paid",
+                    paidAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                });
+            } else if (status === "FAILED") {
+                await orderRef.update({
+                    status: "failed",
+                    failedAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                });
+            }
+        }
 
         // Send out an automated email receipt to everyone who purchased!
         if (status === "COMPLETED") {

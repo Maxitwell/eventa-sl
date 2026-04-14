@@ -102,6 +102,37 @@ export interface UserEntity {
 const eventsRef = collection(db, "events");
 const ticketsRef = collection(db, "tickets");
 
+export interface OrderEntity {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  depositId: string;
+  eventId: string;
+}
+
+export async function getAllEventsAdmin(): Promise<EventEntity[]> {
+  try {
+    const snapshot = await getDocs(eventsRef);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as EventEntity);
+  } catch (error) {
+    console.error("Error fetching all events for admin:", error);
+    return [];
+  }
+}
+
+export async function getAllOrdersAdmin(): Promise<OrderEntity[]> {
+  try {
+    const snapshot = await getDocs(collection(db, "orders"));
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as OrderEntity));
+  } catch(err) {
+    console.error(err);
+    return [];
+  }
+}
+
 function generateDoorPin(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let pin = "";

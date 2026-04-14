@@ -5,7 +5,6 @@ import { Modal } from "./Modal";
 import { useCart } from "@/store/CartContext";
 import { useToast } from "./ToastProvider";
 import { useAuth } from "@/store/AuthContext";
-import { createTicket } from "@/lib/db";
 import { CreditCard, Smartphone, Building2, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "../ui/Input";
@@ -22,9 +21,10 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
     const { currentUser, isLoggedIn } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
-    const [method, setMethod] = useState<"card" | "ussd" | "transfer">("card");
+    const [method, setMethod] = useState<"card" | "ussd" | "transfer">("ussd");
     const [isProcessing, setIsProcessing] = useState(false);
     const [ussdPhone, setUssdPhone] = useState("");
+    const [agreeTerms, setAgreeTerms] = useState(false);
     
     // Guest info state
     const [guestFirstName, setGuestFirstName] = useState("");
@@ -34,6 +34,11 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
     const [guestPhone, setGuestPhone] = useState("");
 
     const handlePayment = async () => {
+        if (!agreeTerms) {
+            showToast("You must agree to the Terms, Privacy Policy, and Refund Policy.", "error");
+            return;
+        }
+
         if (!isLoggedIn) {
             if (!guestFirstName.trim() || !guestSurname.trim() || !guestEmail.trim() || !guestConfirmEmail.trim() || !guestPhone.trim()) {
                 showToast("Please fill in all contact details to receive your tickets.", "error");
@@ -59,7 +64,6 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        amount: totalPrice,
                         phoneNumber: ussdPhone,
                         tickets: items,
                         userId: currentUser?.id,
@@ -90,46 +94,8 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                 return;
             }
 
-            // Mock generation for 'card' and 'transfer' methods
-            const ticketPromises = [];
-
-            for (const item of items) {
-                // For each quantity, create a distinct ticket
-                for (let i = 0; i < item.quantity; i++) {
-                    const ticketData = {
-                        eventId: item.eventId || "unknown-event",
-                        userId: currentUser?.id || `guest_${guestEmail}`,
-                        eventName: item.eventName,
-                        ticketType: item.ticketName,
-                        date: item.eventDate || "TBD",
-                        time: item.eventTime || "TBD",
-                        location: item.eventLocation || "TBD",
-                        purchaseDate: new Date().toISOString(),
-                        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TKT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        status: "valid" as const,
-                        pricePaid: item.price,
-                        ...(!isLoggedIn && {
-                            guestName: `${guestFirstName.trim()} ${guestSurname.trim()}`,
-                            guestEmail: guestEmail.trim().toLowerCase(),
-                            guestPhone: guestPhone.trim()
-                        })
-                    };
-                    ticketPromises.push(createTicket(ticketData));
-                }
-            }
-
-            await Promise.all(ticketPromises);
-
-            clearCart();
-            onClose();
-            
-            if (!isLoggedIn && guestEmail) {
-                const fullName = `${guestFirstName.trim()} ${guestSurname.trim()}`;
-                router.push(`/purchase-success?guestEmail=${encodeURIComponent(guestEmail.trim().toLowerCase())}&guestName=${encodeURIComponent(fullName)}`);
-            } else {
-                router.push("/purchase-success");
-            }
-            showToast("Payment successful! Tickets generated.", "success");
+            showToast("Only Mobile Money checkout is enabled right now for secure ticket issuance.", "error");
+            return;
         } catch (error) {
             console.error("Payment error:", error);
             showToast("Something went wrong processing your order.", "error");
@@ -213,9 +179,10 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                     <div className="flex gap-2 mb-6">
                         <button
                             onClick={() => setMethod("card")}
+                            disabled
                             className={`flex-1 py-3 px-3 rounded-lg border-2 text-xs flex flex-col items-center gap-1 font-bold transition-all ${method === "card"
                                 ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
-                                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                                : "border-gray-200 bg-white text-gray-400 cursor-not-allowed"
                                 }`}
                         >
                             <CreditCard size={18} /> Card
@@ -231,9 +198,10 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                         </button>
                         <button
                             onClick={() => setMethod("transfer")}
+                            disabled
                             className={`flex-1 py-3 px-3 rounded-lg border-2 text-xs flex flex-col items-center gap-1 font-bold transition-all ${method === "transfer"
                                 ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
-                                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                                : "border-gray-200 bg-white text-gray-400 cursor-not-allowed"
                                 }`}
                         >
                             <Building2 size={18} /> Transfer
@@ -283,6 +251,20 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                     </div>
                 </div>
 
+                <div className="pt-2">
+                    <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={agreeTerms} 
+                            onChange={(e) => setAgreeTerms(e.target.checked)}
+                            className="mt-0.5 rounded border-gray-300 text-orange-600 focus:ring-orange-500" 
+                        />
+                        <span>
+                            I agree to the <a href="/terms" target="_blank" className="text-orange-600 hover:underline">Terms</a>, <a href="/privacy" target="_blank" className="text-orange-600 hover:underline">Privacy Policy</a>, and <a href="/refunds" target="_blank" className="text-orange-600 hover:underline">Refund Policy</a>.
+                        </span>
+                    </label>
+                </div>
+
                 <div className="flex gap-3 pt-4 border-t border-gray-100">
                     <Button variant="outline" onClick={onBack} className="w-1/3">
                         Back
@@ -290,7 +272,7 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                     <Button
                         onClick={handlePayment}
                         isLoading={isProcessing}
-                        disabled={totalPrice === 0}
+                        disabled={totalPrice === 0 || method !== "ussd"}
                         className="w-2/3"
                     >
                         Pay NLe {totalPrice.toLocaleString()}

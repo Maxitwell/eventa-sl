@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Calendar, Clock, MapPin, Tag, Briefcase, Camera, Image as ImageIcon, X, Map, Users, Plus, Trash2, Ticket, Info, Wallet, Phone, Mail, MessageCircle, Instagram, Twitter, Globe, Facebook } from "lucide-react";
-import { storage } from "@/lib/firebase";
+import { auth, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper, { Area } from "react-easy-crop";
 import getCroppedImg from "@/lib/cropImage";
@@ -151,11 +151,17 @@ export default function CreateEvent() {
                 // Upload safely via backend API route
                 const formData = new FormData();
                 formData.append('file', fileToUpload);
-                formData.append('userId', currentUser?.id || 'unknown');
+                const idToken = await auth.currentUser?.getIdToken();
+                if (!idToken) {
+                    throw new Error("Authentication expired. Please log in again.");
+                }
 
                 try {
                     const uploadResponse = await fetch('/api/upload', {
                         method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${idToken}`,
+                        },
                         body: formData,
                     });
 

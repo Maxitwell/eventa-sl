@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedEvents, createTicket, getEventById, EventEntity } from "@/lib/db";
+import { getPublishedEvents, getEventById, EventEntity } from "@/lib/db";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 // In-memory session store (MVP: suitable for single-instance, serverless environments might need Redis/Firestore)
 type SessionState = {
@@ -123,7 +124,8 @@ export async function POST(req: NextRequest) {
                     const qrCodeUrl = `https://quickchart.io/qr?text=${ticketReference}&size=300`;
 
                     // Call Firebase DB helper
-                    const ticketId = await createTicket({
+                    const adminDb = getAdminDb();
+                    const ticketRef = await adminDb.collection("tickets").add({
                         eventId: session.eventId,
                         userId: dummyUserId,
                         eventName: session.eventName,
@@ -136,6 +138,7 @@ export async function POST(req: NextRequest) {
                         status: "valid",
                         pricePaid: session.price || 0
                     });
+                    const ticketId = ticketRef.id;
 
                     responseMessage = `✅ *Payment Successful!*\n\nHere is your ticket for *${session.eventName}*.\n\n*Ticket ID:* ${ticketId}\n*Type:* ${session.ticketType}\n\n*QR Code:* ${qrCodeUrl}\n\nPlease show this QR code or Ticket ID at the entrance.\n\nReply *menu* to start over.`;
 

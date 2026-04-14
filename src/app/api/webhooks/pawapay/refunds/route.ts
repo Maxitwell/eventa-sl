@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
+import { assertWebhookSecret, isWebhookReplay } from '@/lib/webhook-security';
 export async function POST(request: Request) {
     try {
+        if (!assertWebhookSecret(request.headers.get("x-webhook-secret"))) {
+            return NextResponse.json({ error: 'Unauthorized webhook' }, { status: 401 });
+        }
         const adminDb = getAdminDb();
         const body = await request.json();
         
@@ -10,6 +14,10 @@ export async function POST(request: Request) {
 
         if (!depositId || !status) {
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+        }
+        const isReplay = await isWebhookReplay(`refund:${refundId || "na"}:${depositId}:${status}`);
+        if (isReplay) {
+            return NextResponse.json({ success: true, message: 'Duplicate webhook ignored' });
         }
 
         console.log(`[PawaPay Webhook] Refund ${refundId} for deposit ${depositId} status: ${status}`);
