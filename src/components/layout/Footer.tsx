@@ -6,14 +6,14 @@ import { Instagram, Twitter, Facebook, Globe, MessageCircle } from "lucide-react
 
 export function Footer() {
     const pathname = usePathname();
-    const isPolicyPage = ["/terms", "/privacy", "/refunds"].includes(pathname);
+    const isMinimalPage = ["/terms", "/privacy", "/refunds", "/login", "/signup"].includes(pathname);
 
     return (
-        <footer className={`bg-white border-t border-gray-100 ${isPolicyPage ? 'pt-8 pb-4' : 'pt-16 pb-8'}`}>
+        <footer className={`bg-white border-t border-gray-100 ${isMinimalPage ? 'pt-8 pb-4' : 'pt-16 pb-8'}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                 {/* WhatsApp Banner */}
-                {!isPolicyPage && (
+                {!isMinimalPage && (
                     <div className="bg-gradient-to-r from-teal-500 to-emerald-600 rounded-3xl p-8 sm:p-12 mb-16 text-center text-white shadow-lg shadow-teal-500/20 relative overflow-hidden flex flex-col items-center">
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
                         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
@@ -37,7 +37,7 @@ export function Footer() {
                     </div>
                 )}
 
-                {!isPolicyPage && (
+                {!isMinimalPage && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                         <div className="col-span-1 md:col-span-2">
                             <Link href="/" className="flex items-center gap-2 mb-6 inline-block">
@@ -77,11 +77,12 @@ export function Footer() {
                     </div>
                 )}
 
-                <div className={`${!isPolicyPage ? 'border-t border-gray-100' : ''} pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500 font-medium pb-4`}>
+                <div className={`${!isMinimalPage ? 'border-t border-gray-100' : ''} pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500 font-medium pb-4`}>
                     <p>© {new Date().getFullYear()} Eventa SL. All rights reserved.</p>
                     <div className="flex gap-6">
                         <Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy Policy</Link>
                         <Link href="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link>
+                        <Link href="/refunds" className="hover:text-gray-900 transition-colors">Refund Policy</Link>
                     </div>
                 </div>
             </div>
