@@ -7,7 +7,8 @@ import { BarChart, Users, Activity, LogOut, Ticket, Lock, LogIn, DollarSign } fr
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { getAllEventsAdmin, getAllOrdersAdmin, updateEventStatus, EventEntity, OrderEntity } from "@/lib/db";
+import { updateEventStatus, EventEntity, OrderEntity } from "@/lib/db";
+import { auth } from "@/lib/firebase";
 
 const ADMIN_EMAIL = "admin@eventa.africa";
 
@@ -44,11 +45,19 @@ export default function AdminDashboard() {
         const fetchData = async () => {
             setIsLoadingData(true);
             try {
-                const [allEvents, allOrders] = await Promise.all([
-                    getAllEventsAdmin(),
-                    getAllOrdersAdmin()
-                ]);
-                allEvents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                // Use the server-side Admin SDK route — bypasses Firestore security rules
+                const idToken = await auth.currentUser?.getIdToken();
+                if (!idToken) throw new Error("Not authenticated");
+
+                const res = await fetch("/api/admin/data", {
+                    headers: { Authorization: `Bearer ${idToken}` },
+                });
+                if (!res.ok) throw new Error(await res.text());
+
+                const { events: allEvents, orders: allOrders } = await res.json();
+                allEvents.sort((a: EventEntity, b: EventEntity) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                );
                 setEvents(allEvents);
                 setOrders(allOrders);
             } catch (error) {
@@ -60,7 +69,7 @@ export default function AdminDashboard() {
         };
 
         fetchData();
-    }, [currentUserEmail]);
+    }, [currentUserEmail, showToast]);
 
     if (isAuthLoading || !isLoggedIn || currentUser?.email !== ADMIN_EMAIL) {
         return (
