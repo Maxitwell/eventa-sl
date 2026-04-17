@@ -252,7 +252,7 @@ export default function EditEvent() {
                 description: description,
                 talents: talents.map(({ name, role }) => ({ name, role })),
                 tickets: isFreeEvent ? [] : tickets,
-                payoutDetails: isFreeEvent ? undefined : payoutDetails,
+                payoutDetails: isFreeEvent ? null : payoutDetails,
                 contactSocials: contactSocials
             });
 
