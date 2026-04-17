@@ -150,7 +150,7 @@ export async function POST(request: Request) {
                     }
                 });
 
-                if (ticketsSold + reservedCount + totalTicketsRequested > capacity + 5) {
+                if (capacity > 0 && ticketsSold + reservedCount + totalTicketsRequested > capacity) {
                     throw new Error("Event capacity reached or tickets temporarily reserved by others. Please try again soon.");
                 }
 

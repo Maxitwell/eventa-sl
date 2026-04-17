@@ -24,16 +24,35 @@ export async function GET(request: Request) {
 
     try {
         const db = getAdminDb();
+        const adminAuth = getAdminAuth();
 
-        const [eventsSnap, ordersSnap] = await Promise.all([
+        // Fetch Firestore collections and Firebase Auth users in parallel
+        const [eventsSnap, ordersSnap, usersSnap, authList] = await Promise.all([
             db.collection("events").get(),
             db.collection("orders").get(),
+            db.collection("users").get(),
+            adminAuth.listUsers(1000),
         ]);
 
         const events = eventsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         const orders = ordersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        return NextResponse.json({ events, orders });
+        // Build a map of uid → Firebase Auth record for quick lookup
+        const authUserMap = new Map(authList.users.map((u) => [u.uid, u]));
+
+        // Merge Firestore user profiles with Auth metadata (disabled status, last sign-in)
+        const users = usersSnap.docs.map((d) => {
+            const profile = d.data();
+            const authUser = authUserMap.get(d.id);
+            return {
+                id: d.id,
+                ...profile,
+                disabled: authUser?.disabled ?? false,
+                lastSignIn: authUser?.metadata.lastSignInTime ?? null,
+            };
+        });
+
+        return NextResponse.json({ events, orders, users });
     } catch (error) {
         console.error("[Admin Data API] Failed to fetch:", error);
         return NextResponse.json({ error: "Failed to fetch admin data" }, { status: 500 });

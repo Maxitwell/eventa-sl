@@ -55,8 +55,9 @@ service cloud.firestore {
     // --- TICKETS COLLECTION ---
     match /tickets/{ticketId} {
 
-      // Strict ticket privacy: only owner or event organizer can read.
-      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
+      // Strict ticket privacy: only owner, event organizer, or super admin can read.
+      allow read: if isSuperAdmin() ||
+                  (isSignedIn() && resource.data.userId == request.auth.uid) ||
                   isEventOrganizer(resource.data.eventId);
 
       // Ticket minting must happen server-side via Admin SDK.
