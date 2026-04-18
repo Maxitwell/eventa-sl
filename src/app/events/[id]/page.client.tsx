@@ -6,7 +6,9 @@ import Image from "next/image";
 import { useToast } from "@/components/shared/ToastProvider";
 import { useModals } from "@/components/shared/ModalProvider";
 import { getEventById, EventEntity } from "@/lib/db";
-import { Calendar, Clock, MapPin, Tag, Briefcase, Map, Users, Ticket, Phone, Mail, MessageCircle, Instagram, Twitter, Globe, Facebook, ArrowLeft, Loader2, Star, Share2 } from "lucide-react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Calendar, Clock, MapPin, Map, Users, Ticket, Phone, Mail, MessageCircle, Instagram, Twitter, Globe, Facebook, ArrowLeft, Star, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 
@@ -41,6 +43,22 @@ export default function EventDetailsPage() {
         fetchEvent();
     }, [params.id, router]);
 
+    // Live listener: keep ticketsSold count in sync
+    useEffect(() => {
+        if (!params.id) return;
+        const unsub = onSnapshot(doc(db, "events", params.id as string), (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                setEvent((prev) => prev ? {
+                    ...prev,
+                    ticketsSold: data.ticketsSold ?? prev.ticketsSold,
+                    totalCapacity: data.totalCapacity ?? prev.totalCapacity,
+                } : prev);
+            }
+        });
+        return () => unsub();
+    }, [params.id]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 pb-20 animate-pulse">
@@ -71,6 +89,10 @@ export default function EventDetailsPage() {
     const primaryCategory = event.categories?.[0] || "Event";
     const isSoldOut = event.ticketsSold >= event.totalCapacity && event.totalCapacity > 0;
     const isFree = event.price === 0;
+    const remaining = Math.max(0, (event.totalCapacity || 0) - (event.ticketsSold || 0));
+    const soldPct = event.totalCapacity > 0 ? Math.min(100, ((event.ticketsSold || 0) / event.totalCapacity) * 100) : 0;
+    // Only show capacity for paid events with a real, non-trivial capacity set
+    const showCapacity = !isFree && event.totalCapacity > 0 && event.totalCapacity < 100000;
 
     const handleShare = () => {
         if (navigator.share) {
@@ -275,11 +297,39 @@ export default function EventDetailsPage() {
                             </Button>
                         )}
 
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 flex items-center justify-center gap-1 mt-4">
-                                100% secure checkout
-                            </p>
-                        </div>
+                        {/* Live ticket availability */}
+                        {showCapacity && (
+                            <div className="pt-2">
+                                <div className="flex justify-between items-center text-sm mb-2">
+                                    <span className="text-gray-500 font-medium">Availability</span>
+                                    <span className={`font-bold ${
+                                        isSoldOut ? "text-red-500" :
+                                        remaining <= 10 ? "text-red-500" :
+                                        soldPct >= 75 ? "text-orange-500" : "text-gray-700"
+                                    }`}>
+                                        {isSoldOut ? "Sold Out" : `${remaining.toLocaleString()} left`}
+                                    </span>
+                                </div>
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                            soldPct >= 90 ? "bg-red-500" :
+                                            soldPct >= 60 ? "bg-orange-500" : "bg-green-500"
+                                        }`}
+                                        style={{ width: `${soldPct}%` }}
+                                    />
+                                </div>
+                                {soldPct >= 75 && !isSoldOut && (
+                                    <p className="text-xs text-orange-500 font-semibold mt-1.5">
+                                        🔥 Selling fast — {remaining} ticket{remaining !== 1 ? "s" : ""} remaining
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        <p className="text-sm text-gray-500 flex items-center justify-center gap-1">
+                            100% secure checkout
+                        </p>
                     </div>
                 </div>
 

@@ -131,31 +131,46 @@ function SignupContent() {
         <div className="min-h-screen bg-[#fbf8ff] flex flex-col">
 
             {/* ── Main Card ── */}
-            <main className="flex-grow flex items-center justify-center py-24 px-4">
-                <div className="w-full max-w-xl bg-white rounded-xl shadow-[0_12px_32px_-4px_rgba(26,27,34,0.08)] p-8 md:p-12">
-
-                    {/* Segmented role control */}
-                    <div className="flex p-1 bg-gray-100 rounded-lg mb-10 w-full max-w-sm mx-auto">
-                        <button
-                            type="button"
-                            onClick={() => setRole("attendee")}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${role === "attendee" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-                        >
-                            Buy Tickets
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setRole("organizer")}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${role === "organizer" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-                        >
-                            Event Organiser
-                        </button>
-                    </div>
+            <main className="flex-grow flex items-center justify-center py-12 sm:py-24 px-4">
+                <div className="w-full max-w-xl bg-white rounded-xl shadow-[0_12px_32px_-4px_rgba(26,27,34,0.08)] p-6 sm:p-8 md:p-12">
 
                     {/* Header */}
-                    <div className="text-center mb-10">
-                        <h1 className="text-4xl font-bold tracking-tight text-gray-900 mb-2">Create Account</h1>
+                    <div className="text-center mb-6">
+                        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">Create Account</h1>
                         <p className="text-gray-500 text-sm">Join the elite circle of event enthusiasts.</p>
+                    </div>
+
+                    {/* Role selector — two prominent cards so organisers can't miss it */}
+                    <div className="mb-8">
+                        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 text-center mb-3">I am signing up as a…</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setRole("attendee")}
+                                className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                                    role === "attendee"
+                                        ? "border-orange-500 bg-orange-50 shadow-sm"
+                                        : "border-gray-200 bg-white hover:border-orange-300"
+                                }`}
+                            >
+                                <span className="text-2xl block mb-2">🎟️</span>
+                                <p className="font-bold text-gray-900 text-sm">Ticket Buyer</p>
+                                <p className="text-xs text-gray-500 mt-0.5 leading-snug">Browse and attend events</p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setRole("organizer")}
+                                className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                                    role === "organizer"
+                                        ? "border-orange-500 bg-orange-50 shadow-sm"
+                                        : "border-gray-200 bg-white hover:border-orange-300"
+                                }`}
+                            >
+                                <span className="text-2xl block mb-2">🎤</span>
+                                <p className="font-bold text-gray-900 text-sm">Event Organiser</p>
+                                <p className="text-xs text-gray-500 mt-0.5 leading-snug">Create events &amp; sell tickets</p>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Social logins */}

@@ -4,7 +4,10 @@
       "Bash(npm run *)",
       "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'Node processes stopped'\")",
       "Bash(vercel --version)",
-      "Bash(vercel whoami *)"
+      "Bash(vercel whoami *)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/lucide-react/package.json'\\); console.log\\(pkg.version\\);\")",
+      "Bash(npx tsc *)",
+      "Bash(vercel --prod)"
     ]
   }
 }

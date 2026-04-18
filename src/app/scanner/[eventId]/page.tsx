@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import {
     Lock, ScanLine, List, CheckCircle2, XCircle,
-    Search, User, Filter, RefreshCw, Zap, LogOut, Clock, WifiOff,
+    Search, User, Filter, RefreshCw, Zap, LogOut, Clock,
 } from "lucide-react";
 import type { Html5Qrcode } from "html5-qrcode";
 import { doc, getDoc } from "firebase/firestore";
@@ -578,11 +578,6 @@ export default function ScannerTerminal() {
         return (
             <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6">
                 <div className="w-full max-w-sm">
-                    {!isOnline && (
-                        <div className="mb-4 flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs rounded-lg">
-                            <WifiOff size={14} /> No internet — cached data will be used if you previously logged in.
-                        </div>
-                    )}
                     <div className="text-center mb-6">
                         <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
                             <ScanLine size={13} /> Door Scanner
@@ -653,9 +648,7 @@ export default function ScannerTerminal() {
 
                         {/* Connectivity / sync status */}
                         {!isOnline ? (
-                            <p className="text-yellow-500 text-xs font-semibold mt-0.5 flex items-center gap-1">
-                                <WifiOff size={11} /> Offline — admits queued locally
-                            </p>
+                            <p className="text-yellow-500 text-xs font-semibold mt-0.5">Offline — admits queued</p>
                         ) : isSyncing ? (
                             <p className="text-blue-400 text-xs mt-0.5">Syncing…</p>
                         ) : lastSynced ? (
@@ -715,7 +708,6 @@ export default function ScannerTerminal() {
                                 <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
                                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                     <span className="text-green-400 text-xs font-bold tracking-widest">LIVE</span>
-                                    {!isOnline && <span className="text-yellow-400 text-xs font-bold ml-1">· OFFLINE</span>}
                                 </div>
                                 <button onClick={toggleTorch} title="Toggle flashlight"
                                     className={`pointer-events-auto p-3 rounded-full transition ${torchEnabled ? "bg-yellow-400 text-black" : "bg-black/60 backdrop-blur-sm text-white hover:bg-black/80"}`}
@@ -783,14 +775,9 @@ export default function ScannerTerminal() {
                                     <h3 className="text-white font-bold text-xl mb-2">Ready to Scan</h3>
                                     <p className="text-gray-400 text-sm">
                                         {tickets.length > 0
-                                            ? `${tickets.length} tickets loaded${!isOnline ? " from cache" : ""}. Point camera at any QR code.`
+                                            ? `${tickets.length} tickets loaded. Point camera at any QR code.`
                                             : "Point the camera at any ticket QR code."}
                                     </p>
-                                    {!isOnline && tickets.length > 0 && (
-                                        <p className="text-yellow-500 text-xs mt-2 flex items-center justify-center gap-1">
-                                            <WifiOff size={11} /> Offline mode — scanning from local cache
-                                        </p>
-                                    )}
                                 </div>
                                 <button onClick={startCamera}
                                     className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-10 py-4 rounded-2xl shadow-lg text-lg transition">
@@ -804,22 +791,6 @@ export default function ScannerTerminal() {
                 {/* ── List Tab ─────────────────────────────────────────────── */}
                 {activeTab === "list" && (
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-950">
-                        {/* Offline cache notice */}
-                        {!isOnline && tickets.length > 0 && (
-                            <div className="mb-3 flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs rounded-xl">
-                                <WifiOff size={13} />
-                                Offline — showing local cache. Admits will sync when connected.
-                            </div>
-                        )}
-
-                        {/* Pending sync notice */}
-                        {pendingSync > 0 && isOnline && (
-                            <div className="mb-3 flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs rounded-xl">
-                                <span>{pendingSync} offline admit{pendingSync !== 1 ? "s" : ""} pending sync</span>
-                                <button onClick={flushQueue} className="underline text-blue-300">Sync now</button>
-                            </div>
-                        )}
-
                         {/* Search + VIP + refresh */}
                         <div className="flex gap-2 mb-3">
                             <div className="relative flex-1">

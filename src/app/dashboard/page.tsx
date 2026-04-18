@@ -450,9 +450,11 @@ export default function Dashboard() {
                                 </div>
                             )}
                             <div className="space-y-4">
-                                {events.map((event) => (
-                                    <div key={event.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row gap-6 items-center hover:border-orange-200 transition">
-                                        <div className="w-full md:w-48 h-32 bg-gray-100 rounded-xl relative overflow-hidden shrink-0">
+                                {events.map((event) => {
+                                    const isFreeEvent = event.price === 0;
+                                    return (
+                                    <div key={event.id} className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm flex flex-col md:flex-row gap-4 sm:gap-6 items-start md:items-center hover:border-orange-200 transition">
+                                        <div className="w-full md:w-48 h-28 sm:h-32 bg-gray-100 rounded-xl relative overflow-hidden shrink-0">
                                             {event.image ? (
                                                 <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
                                             ) : (
@@ -461,9 +463,10 @@ export default function Dashboard() {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex-1 w-full">
-                                            <div className="flex items-center justify-between gap-2 mb-2">
-                                                <div className="flex items-center gap-3">
+                                        <div className="flex-1 w-full min-w-0">
+                                            {/* Status row — wraps on mobile */}
+                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <StatusPill status={event.status || "draft"} />
                                                     <button
                                                         onClick={() => handleToggleStatus(event.id, event.status)}
@@ -472,21 +475,22 @@ export default function Dashboard() {
                                                         {event.status === "published" ? "Pause Sales" : "Republish"}
                                                     </button>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                {/* Action buttons — wrap on small screens */}
+                                                <div className="flex flex-wrap items-center gap-1.5">
                                                     {event.doorPin && (
-                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-white font-mono text-sm tracking-widest" title="Gatekeeper PIN">
-                                                            <Lock size={14} className="text-orange-500" />
+                                                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-white font-mono text-xs tracking-widest" title="Gatekeeper PIN">
+                                                            <Lock size={12} className="text-orange-500" />
                                                             {event.doorPin}
                                                         </div>
                                                     )}
                                                     <button
                                                         onClick={() => { setSharingEventId(sharingEventId === event.id ? null : event.id); setCopied(false); }}
-                                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold"
+                                                        className="p-1.5 sm:px-2 sm:py-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
                                                     >
-                                                        <ScanLine size={16} /> Share Scanner
+                                                        <ScanLine size={14} /> <span className="hidden sm:inline">Share Scanner</span>
                                                     </button>
-                                                    <Link href={`/events/${event.id}/edit`} className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold">
-                                                        <Settings size={16} /> Edit
+                                                    <Link href={`/events/${event.id}/edit`} className="p-1.5 sm:px-2 sm:py-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold">
+                                                        <Settings size={14} /> <span className="hidden sm:inline">Edit</span>
                                                     </Link>
                                                 </div>
                                             </div>
@@ -515,24 +519,25 @@ export default function Dashboard() {
                                                     </div>
                                                 </div>
                                             )}
-                                            <h4 className="text-xl font-bold text-gray-900 mb-2 truncate">{event.title}</h4>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500 mb-4">
-                                                <span className="flex items-center gap-1"><Calendar size={14} className="text-orange-500" /> {event.date}</span>
-                                                <span className="flex items-center gap-1"><MapPin size={14} className="text-orange-500" /> {event.location}</span>
+                                            <h4 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 truncate">{event.title}</h4>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mb-3">
+                                                <span className="flex items-center gap-1"><Calendar size={13} className="text-orange-500" /> {event.date}</span>
+                                                <span className="flex items-center gap-1 min-w-0"><MapPin size={13} className="text-orange-500 shrink-0" /> <span className="truncate">{event.location}</span></span>
                                             </div>
-                                            <div className="flex items-center gap-6 text-sm font-medium pt-3 border-t border-gray-50">
+                                            <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm font-medium pt-3 border-t border-gray-50">
                                                 <span className="flex items-center gap-1.5 text-gray-600">
-                                                    <Ticket size={16} className="text-gray-400" />
+                                                    <Ticket size={15} className="text-gray-400" />
                                                     {event.ticketsSold || 0} / {event.totalCapacity || 0} Sold
                                                 </span>
-                                                <span className="flex items-center gap-1.5 text-gray-600">
-                                                    <BarChart size={16} className="text-green-500" />
-                                                    Le {(eventRevenueMap.get(event.id) || 0).toLocaleString()} Rev.
+                                                <span className={`flex items-center gap-1.5 ${isFreeEvent ? "text-gray-300" : "text-gray-600"}`}>
+                                                    <BarChart size={15} className={isFreeEvent ? "text-gray-300" : "text-green-500"} />
+                                                    {isFreeEvent ? "Free Event" : `Le ${(eventRevenueMap.get(event.id) || 0).toLocaleString()} Rev.`}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                         {process.env.NODE_ENV === "development" && (
@@ -561,26 +566,30 @@ export default function Dashboard() {
                                 const paidOrders = eventOrders.filter((o) => o.status === "paid");
                                 return (
                                     <div key={event.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                                            <div>
-                                                <h3 className="font-bold text-gray-900">{event.title}</h3>
-                                                <p className="text-xs text-gray-400 mt-0.5">{event.date} · {event.location}</p>
+                                        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-gray-50 flex flex-wrap items-start sm:items-center justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <h3 className="font-bold text-gray-900 truncate">{event.title}</h3>
+                                                <p className="text-xs text-gray-400 mt-0.5 truncate">{event.date} · {event.location}</p>
                                             </div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2 shrink-0">
                                                 <StatusPill status={event.status || "draft"} />
                                                 <Link href={`/events/${event.id}/edit`} className="text-xs font-bold text-orange-600 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-50">
                                                     Edit
                                                 </Link>
                                             </div>
                                         </div>
-                                        <div className="px-6 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center border-b border-gray-100">
+                                        <div className="px-4 sm:px-6 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center border-b border-gray-100">
                                             <div>
                                                 <p className="text-xl font-bold text-gray-900">{event.ticketsSold || 0}</p>
                                                 <p className="text-xs text-gray-400">Sold of {event.totalCapacity || 0}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xl font-bold text-green-700">Le {eventRevenue.toLocaleString()}</p>
-                                                <p className="text-xs text-gray-400">Revenue</p>
+                                                <p className={`text-xl font-bold ${event.price === 0 ? "text-gray-300" : "text-green-700"}`}>
+                                                    {event.price === 0 ? "—" : `Le ${eventRevenue.toLocaleString()}`}
+                                                </p>
+                                                <p className={`text-xs ${event.price === 0 ? "text-gray-300" : "text-gray-400"}`}>
+                                                    {event.price === 0 ? "Free Event" : "Revenue"}
+                                                </p>
                                             </div>
                                             <div>
                                                 <p className="text-xl font-bold text-gray-900">{paidOrders.length}</p>

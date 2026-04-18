@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/store/AuthContext";
 import { useToast } from "@/components/shared/ToastProvider";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,79 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper, { Area } from "react-easy-crop";
 import getCroppedImg from "@/lib/cropImage";
 import imageCompression from "browser-image-compression";
+
+// ─── Custom 12-hour time picker ──────────────────────────────────────────────
+function TimeSelect({
+    label,
+    value,
+    onChange,
+    required,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    required?: boolean;
+}) {
+    const parse = (v: string) => {
+        if (!v) return { hour: "12", minute: "00", ampm: "AM" as const };
+        const [hStr, mStr] = v.split(":");
+        const h24 = parseInt(hStr, 10);
+        const minute = mStr || "00";
+        if (h24 === 0) return { hour: "12", minute, ampm: "AM" as const };
+        if (h24 < 12) return { hour: String(h24), minute, ampm: "AM" as const };
+        if (h24 === 12) return { hour: "12", minute, ampm: "PM" as const };
+        return { hour: String(h24 - 12), minute, ampm: "PM" as const };
+    };
+    const { hour: ih, minute: im, ampm: iap } = parse(value);
+    const [hour, setHour] = useState(ih);
+    const [minute, setMinute] = useState(im);
+    const [ampm, setAmpm] = useState<"AM" | "PM">(iap);
+
+    const emit = (h: string, m: string, ap: "AM" | "PM") => {
+        let h24 = parseInt(h, 10);
+        if (ap === "AM" && h24 === 12) h24 = 0;
+        else if (ap === "PM" && h24 !== 12) h24 += 12;
+        onChange(`${String(h24).padStart(2, "0")}:${m}`);
+    };
+
+    const hours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const minutes = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+                {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+            </label>
+            <div className="flex items-center gap-2">
+                <select
+                    value={hour}
+                    onChange={(e) => { setHour(e.target.value); emit(e.target.value, minute, ampm); }}
+                    className="form-input flex-1 min-w-0 appearance-none cursor-pointer"
+                >
+                    {hours.map((h) => <option key={h} value={String(h)}>{String(h).padStart(2, "0")}</option>)}
+                </select>
+                <span className="text-gray-400 font-bold text-lg shrink-0">:</span>
+                <select
+                    value={minute}
+                    onChange={(e) => { setMinute(e.target.value); emit(hour, e.target.value, ampm); }}
+                    className="form-input flex-1 min-w-0 appearance-none cursor-pointer"
+                >
+                    {minutes.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
+                    <button type="button"
+                        onClick={() => { setAmpm("AM"); emit(hour, minute, "AM"); }}
+                        className={`px-3 py-2.5 text-sm font-bold transition-colors ${ampm === "AM" ? "bg-orange-500 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                    >AM</button>
+                    <button type="button"
+                        onClick={() => { setAmpm("PM"); emit(hour, minute, "PM"); }}
+                        className={`px-3 py-2.5 text-sm font-bold transition-colors ${ampm === "PM" ? "bg-orange-500 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                    >PM</button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function CreateEvent() {
     const { isLoggedIn, currentUser } = useAuth();
@@ -57,6 +130,27 @@ export default function CreateEvent() {
         phone: "",
         whatsapp: "",
     });
+
+    // End date/time validation
+    const [endDateError, setEndDateError] = useState("");
+
+    const validateEndDateTime = useCallback((sd: string, st: string, ed: string, et: string) => {
+        if (!ed && !et) { setEndDateError(""); return; }
+        if (ed && sd) {
+            if (new Date(ed) < new Date(sd)) {
+                setEndDateError("End date cannot be before start date.");
+                return;
+            }
+            if (ed === sd && et && st) {
+                const toMins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+                if (toMins(et) - toMins(st) < 30) {
+                    setEndDateError("End time must be at least 30 minutes after start time.");
+                    return;
+                }
+            }
+        }
+        setEndDateError("");
+    }, []);
 
     // Image Cropping State
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -458,15 +552,13 @@ export default function CreateEvent() {
                                 label="Start Date"
                                 icon={<Calendar size={16} />}
                                 value={date}
-                                onChange={(e) => setDate(e.target.value)}
+                                onChange={(e) => { setDate(e.target.value); validateEndDateTime(e.target.value, time, endDate, endTime); }}
                                 required
                             />
-                            <Input
-                                type="time"
-                                label="Start Time (AM/PM)"
-                                icon={<Clock size={16} />}
+                            <TimeSelect
+                                label="Start Time"
                                 value={time}
-                                onChange={(e) => setTime(e.target.value)}
+                                onChange={(v) => { setTime(v); validateEndDateTime(date, v, endDate, endTime); }}
                                 required
                             />
                         </div>
@@ -477,16 +569,20 @@ export default function CreateEvent() {
                                 label="End Date (Optional)"
                                 icon={<Calendar size={16} />}
                                 value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                                onChange={(e) => { setEndDate(e.target.value); validateEndDateTime(date, time, e.target.value, endTime); }}
                             />
-                            <Input
-                                type="time"
-                                label="End Time (AM/PM) (Optional)"
-                                icon={<Clock size={16} />}
+                            <TimeSelect
+                                label="End Time (Optional)"
                                 value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
+                                onChange={(v) => { setEndTime(v); validateEndDateTime(date, time, endDate, v); }}
                             />
                         </div>
+
+                        {endDateError && (
+                            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
+                                <Info size={15} className="shrink-0" /> {endDateError}
+                            </div>
+                        )}
                     </div>
 
                     {/* Talent and Line up */}
@@ -541,24 +637,36 @@ export default function CreateEvent() {
 
                     {/* Ticketing & Capacity */}
                     <div className="space-y-6">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                <Ticket size={20} className="text-orange-500" /> Tickets
-                            </h3>
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
+                            <Ticket size={20} className="text-orange-500" /> Tickets
+                        </h3>
 
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-gray-700">Is this a free event?</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={isFreeEvent}
-                                        onChange={(e) => setIsFreeEvent(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                                </label>
+                        {/* Free event toggle — prominent card */}
+                        <button
+                            type="button"
+                            onClick={() => setIsFreeEvent(!isFreeEvent)}
+                            className={`w-full text-left rounded-2xl p-5 border-2 transition-all ${
+                                isFreeEvent
+                                    ? "border-orange-500 bg-orange-50"
+                                    : "border-gray-200 bg-white hover:border-orange-300"
+                            }`}
+                        >
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="font-bold text-gray-900 text-base">Free Event</p>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {isFreeEvent
+                                            ? "This event is free — no ticket price required."
+                                            : "Toggle on if attendees don't need to pay to attend."}
+                                    </p>
+                                </div>
+                                <div className="relative inline-flex items-center shrink-0">
+                                    <div className={`w-12 h-6 rounded-full transition-colors ${isFreeEvent ? "bg-orange-500" : "bg-gray-200"}`}>
+                                        <div className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow transition-all ${isFreeEvent ? "left-[26px]" : "left-[2px]"}`} />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        </button>
 
                         <div className="flex items-center gap-2 bg-[#f0f9ff] text-[#0284c7] p-3 rounded-xl text-sm border border-[#bae6fd]">
                             <Info size={16} className="shrink-0" />
