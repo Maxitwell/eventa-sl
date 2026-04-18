@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'Node processes stopped'\")",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami *)"
+    ]
+  }
+}
