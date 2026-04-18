@@ -6,7 +6,7 @@ import { useToast } from "@/components/shared/ToastProvider";
 import {
     Plus, BarChart, Users, Settings, LogOut, Ticket,
     MapPin, Calendar, ScanLine, Lock, Download, Search,
-    DollarSign, ChevronDown,
+    DollarSign, ChevronDown, Share2, Copy, Check, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -141,6 +141,24 @@ export default function Dashboard() {
 
     // Payout state
     const [payoutLoading, setPayoutLoading] = useState<string | null>(null);
+
+    // Scanner share panel state
+    const [sharingEventId, setSharingEventId] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyScannerLink = (eventId: string) => {
+        const url = `https://www.eventa.africa/scanner/${eventId}`;
+        navigator.clipboard.writeText(url).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    const handleWhatsAppShare = (event: EventEntity) => {
+        const url = `https://www.eventa.africa/scanner/${event.id}`;
+        const text = `🎟️ *${event.title} — Door Scanner*\n\nOpen this link to scan tickets at the door:\n${url}\n\nEnter the PIN when prompted: *${event.doorPin || "see dashboard"}*`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    };
 
     // Settings state
     const [settingsName, setSettingsName] = useState("");
@@ -461,14 +479,42 @@ export default function Dashboard() {
                                                             {event.doorPin}
                                                         </div>
                                                     )}
-                                                    <Link href={`/scanner/${event.id}`} target="_blank" className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold">
-                                                        <ScanLine size={16} /> Check In
-                                                    </Link>
+                                                    <button
+                                                        onClick={() => { setSharingEventId(sharingEventId === event.id ? null : event.id); setCopied(false); }}
+                                                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold"
+                                                    >
+                                                        <ScanLine size={16} /> Share Scanner
+                                                    </button>
                                                     <Link href={`/events/${event.id}/edit`} className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold">
                                                         <Settings size={16} /> Edit
                                                     </Link>
                                                 </div>
                                             </div>
+                                            {sharingEventId === event.id && (
+                                                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-in fade-in slide-in-from-top-1 duration-150">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5"><ScanLine size={12} /> Scanner Link</span>
+                                                        <button onClick={() => setSharingEventId(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                                                    </div>
+                                                    <p className="text-xs font-mono text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 mb-2 truncate">
+                                                        https://www.eventa.africa/scanner/{event.id}
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleCopyScannerLink(event.id)}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition"
+                                                        >
+                                                            {copied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy Link</>}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleWhatsAppShare(event)}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                                                        >
+                                                            <Share2 size={13} /> WhatsApp
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <h4 className="text-xl font-bold text-gray-900 mb-2 truncate">{event.title}</h4>
                                             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500 mb-4">
                                                 <span className="flex items-center gap-1"><Calendar size={14} className="text-orange-500" /> {event.date}</span>

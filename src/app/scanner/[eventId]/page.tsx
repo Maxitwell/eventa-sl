@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Lock, ScanLine, List, CheckCircle2, XCircle, Search, User, Filter } from "lucide-react";
 import type { Html5Qrcode } from "html5-qrcode";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 type TicketEntity = {
     id: string;
@@ -21,6 +23,7 @@ export default function ScannerTerminal() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [pinInput, setPinInput] = useState("");
     const [authError, setAuthError] = useState("");
+    const [preloadedEventName, setPreloadedEventName] = useState<string | null>(null);
 
     const [event, setEvent] = useState<{ id: string; title: string } | null>(null);
     const [tickets, setTickets] = useState<TicketEntity[]>([]);
@@ -34,6 +37,14 @@ export default function ScannerTerminal() {
 
     // Hold the scanner instance in a ref — dynamically imported to avoid SSR crash
     const scannerRef = useRef<Html5Qrcode | null>(null);
+
+    // Pre-load event name so staff can confirm they're at the right event before entering PIN
+    useEffect(() => {
+        if (!eventId) return;
+        getDoc(doc(db, "events", eventId))
+            .then((snap) => { if (snap.exists()) setPreloadedEventName((snap.data() as { title?: string }).title ?? null); })
+            .catch(() => {});
+    }, [eventId]);
 
     // Initial Auth Check
     useEffect(() => {
@@ -200,32 +211,47 @@ export default function ScannerTerminal() {
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6">
-                <div className="w-full max-w-sm bg-gray-900 rounded-2xl p-8 border border-gray-800 shadow-2xl">
-                    <div className="flex justify-center mb-6">
-                        <div className="p-4 bg-orange-500/10 rounded-full text-orange-500">
-                            <Lock size={32} />
+                <div className="w-full max-w-sm">
+                    {/* Event name banner */}
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
+                            <ScanLine size={13} /> Door Scanner
                         </div>
+                        {preloadedEventName ? (
+                            <h1 className="text-2xl font-extrabold text-white leading-tight">{preloadedEventName}</h1>
+                        ) : (
+                            <div className="h-7 w-48 bg-gray-800 rounded-lg animate-pulse mx-auto" />
+                        )}
                     </div>
-                    <h1 className="text-2xl font-bold text-white text-center mb-2">Scanner Login</h1>
-                    <p className="text-gray-400 text-center text-sm mb-8">Enter the 6-character Gate Pin for this event.</p>
 
-                    {authError && <div className="mb-4 p-3 bg-red-500/10 text-red-500 text-sm rounded-lg text-center">{authError}</div>}
+                    <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800 shadow-2xl">
+                        <div className="flex justify-center mb-5">
+                            <div className="p-3 bg-orange-500/10 rounded-full text-orange-500">
+                                <Lock size={28} />
+                            </div>
+                        </div>
+                        <h2 className="text-lg font-bold text-white text-center mb-1">Enter Door PIN</h2>
+                        <p className="text-gray-400 text-center text-sm mb-6">Enter the 6-character Gate PIN to unlock the scanner.</p>
 
-                    <input
-                        type="text"
-                        maxLength={6}
-                        value={pinInput}
-                        onChange={(e) => setPinInput(e.target.value.toUpperCase())}
-                        placeholder="e.g. X7K9P2"
-                        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 text-center text-2xl tracking-[0.5em] text-white focus:outline-none focus:border-orange-500 mb-6 uppercase"
-                    />
+                        {authError && <div className="mb-4 p-3 bg-red-500/10 text-red-500 text-sm rounded-lg text-center">{authError}</div>}
 
-                    <button
-                        onClick={() => handleLogin(pinInput)}
-                        className="w-full bg-orange-500 text-white font-bold py-4 rounded-xl hover:bg-orange-600 transition"
-                    >
-                        Unlock Scanner
-                    </button>
+                        <input
+                            type="text"
+                            maxLength={6}
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value.toUpperCase())}
+                            placeholder="e.g. X7K9P2"
+                            autoFocus
+                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-4 text-center text-2xl tracking-[0.5em] text-white focus:outline-none focus:border-orange-500 mb-4 uppercase"
+                        />
+
+                        <button
+                            onClick={() => handleLogin(pinInput)}
+                            className="w-full bg-orange-500 text-white font-bold py-4 rounded-xl hover:bg-orange-600 transition"
+                        >
+                            Unlock Scanner
+                        </button>
+                    </div>
                 </div>
             </div>
         );
