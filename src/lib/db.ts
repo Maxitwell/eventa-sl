@@ -58,7 +58,7 @@ export interface EventEntity {
   endTime?: string;
   talents?: { name: string; role: string }[];
   tickets?: EventTicketTier[];
-  payoutDetails?: { method: string; accountName: string; accountNumber: string };
+  payoutDetails?: { method: string; accountName: string; accountNumber: string } | null;
   contactSocials?: {
     email: string;
     phone: string;
