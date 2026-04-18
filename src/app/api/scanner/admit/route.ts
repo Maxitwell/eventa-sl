@@ -26,15 +26,14 @@ export async function POST(request: Request) {
       if (!ticketSnap.exists) return { ok: false, message: "Ticket not found in system." };
 
       const ticket = ticketSnap.data() as { eventId?: string; status?: string; guestName?: string; ticketType?: string };
-      if (ticket.eventId !== eventId) return { ok: false, message: "Ticket is for a different event!" };
-      if (ticket.status === "used") return { ok: false, message: `Already Scanned! (${ticket.guestName || "Guest"})` };
-      if (ticket.status !== "valid") return { ok: false, message: `Ticket is ${(ticket.status || "invalid").toUpperCase()}` };
+      const guestName = ticket.guestName || "Guest";
+      const ticketType = ticket.ticketType || "Standard";
+      if (ticket.eventId !== eventId) return { ok: false, message: "Ticket is for a different event!", guestName, ticketType };
+      if (ticket.status === "used") return { ok: false, message: "Already Scanned!", guestName, ticketType };
+      if (ticket.status !== "valid") return { ok: false, message: `Ticket is ${(ticket.status || "invalid").toUpperCase()}`, guestName, ticketType };
 
       tx.update(ticketRef, { status: "used", usedAt: new Date().toISOString() });
-      return {
-        ok: true,
-        message: `Admitted: ${ticket.guestName || "Guest"} (${ticket.ticketType || "Standard"})`,
-      };
+      return { ok: true, message: "Admitted", guestName, ticketType };
     });
 
     return NextResponse.json(result, { status: result.ok ? 200 : 400 });
