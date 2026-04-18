@@ -26,6 +26,7 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
         return false;
     }
 
+    const qrBase64 = qrCodeDataUrl.split(',')[1];
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
             <div style="background-color: #111827; padding: 20px; text-align: center;">
@@ -34,10 +35,10 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
             <div style="padding: 30px;">
                 <h2 style="color: #111827; font-size: 20px; margin-top: 0;">Hi ${guestName || 'there'},</h2>
                 <p style="color: #4b5563; line-height: 1.6;">Your payment was successful! Here is your official digital pass for <strong>${eventName}</strong>.</p>
-                
+
                 <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
                     <p style="text-transform: uppercase; color: #6b7280; font-size: 12px; font-weight: bold; margin-top: 0;">Scan at the Door</p>
-                    <img src="${qrCodeDataUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
+                    <img src="cid:qrcode@eventa" alt="Ticket QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
                     <p style="color: #9ca3af; font-family: monospace; font-size: 10px; margin-bottom: 0;">SECURE CRYPTOGRAPHIC PAYLOAD</p>
                 </div>
 
@@ -55,6 +56,12 @@ export async function sendTicketEmail(guestEmail: string, guestName: string, eve
             to: guestEmail,
             subject: `Your Ticket for ${eventName}`,
             html: htmlContent,
+            attachments: [{
+                filename: 'ticket-qr.png',
+                content: Buffer.from(qrBase64, 'base64'),
+                contentType: 'image/png',
+                cid: 'qrcode@eventa',
+            }],
         });
         console.log(`[Email Delivery] Ticket successfully sent to ${guestEmail}`);
         return true;
@@ -176,6 +183,7 @@ export async function sendEventReminderEmail(
         return false;
     }
 
+    const qrBase64 = qrCodeDataUrl.split(',')[1];
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
             <div style="background-color: #111827; padding: 20px; text-align: center;">
@@ -192,7 +200,7 @@ export async function sendEventReminderEmail(
                 </div>
                 <div style="text-align: center; margin: 24px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
                     <p style="text-transform: uppercase; color: #6b7280; font-size: 12px; font-weight: bold; margin-top: 0;">Your Ticket — Scan at the Door</p>
-                    <img src="${qrCodeDataUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
+                    <img src="cid:qrcode@eventa" alt="Ticket QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
                 </div>
                 <p style="color: #4b5563; line-height: 1.6; text-align: center;">See you there!</p>
             </div>
@@ -208,6 +216,12 @@ export async function sendEventReminderEmail(
             to: recipientEmail,
             subject: `See you tomorrow at ${eventName}! 🎟️`,
             html: htmlContent,
+            attachments: [{
+                filename: 'ticket-qr.png',
+                content: Buffer.from(qrBase64, 'base64'),
+                contentType: 'image/png',
+                cid: 'qrcode@eventa',
+            }],
         });
         console.log(`[Email Delivery] Reminder sent to ${recipientEmail}`);
         return true;
