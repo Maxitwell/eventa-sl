@@ -683,12 +683,25 @@ export default function AdminDashboard() {
                                                                                         Unsuspend
                                                                                     </button>
                                                                                 )}
+                                                                                {e.status === "draft" && (
+                                                                                    <button
+                                                                                        onClick={() =>
+                                                                                            handleEventStatus(
+                                                                                                e.id,
+                                                                                                "published"
+                                                                                            )
+                                                                                        }
+                                                                                        className="text-xs font-bold text-green-600 hover:text-green-700 px-2.5 py-1.5 rounded-lg border border-green-200 hover:bg-green-50 bg-white"
+                                                                                    >
+                                                                                        Publish
+                                                                                    </button>
+                                                                                )}
                                                                                 {e.status === "cancelled" && (
                                                                                     <button
                                                                                         onClick={() =>
                                                                                             handleEventStatus(
                                                                                                 e.id,
-                                                                                                "draft"
+                                                                                                "published"
                                                                                             )
                                                                                         }
                                                                                         className="text-xs font-bold text-blue-600 hover:text-blue-700 px-2.5 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 bg-white"
