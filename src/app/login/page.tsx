@@ -4,7 +4,7 @@ import { useState, Suspense, useEffect } from "react";
 import { useAuth } from "@/store/AuthContext";
 import { useToast } from "@/components/shared/ToastProvider";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Lock, Phone } from "lucide-react";
+import { Mail, Lock, Phone, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 /* ─────────────────────────────────────────
@@ -42,6 +42,7 @@ function AuthField({
 function LoginContent() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [authMode, setAuthMode] = useState<"email" | "phone">("email");
     const [phoneNumber, setPhoneNumber] = useState("");
@@ -170,13 +171,21 @@ function LoginContent() {
                                         <Lock size={16} />
                                     </span>
                                     <input
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         required
                                         placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400 text-gray-900 text-sm"
+                                        className="w-full pl-11 pr-11 py-3 bg-gray-50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400 text-gray-900 text-sm"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        tabIndex={-1}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
                                 </div>
                             </div>
 

@@ -124,10 +124,10 @@ export function Footer() {
                         <div>
                             <h4 className="font-bold text-gray-900 mb-5 text-xs uppercase tracking-widest">Support</h4>
                             <ul className="space-y-3.5 text-gray-500 font-medium">
-                                <li><Link href="/terms" className="hover:text-orange-500 transition-colors">Help center</Link></li>
+                                <li><Link href="/faq" className="hover:text-orange-500 transition-colors">Help center</Link></li>
                                 <li><Link href="/refunds" className="hover:text-orange-500 transition-colors">Refund policy</Link></li>
                                 <li><Link href="/privacy" className="hover:text-orange-500 transition-colors">Contact us</Link></li>
-                                <li><Link href="/terms" className="hover:text-orange-500 transition-colors">Organiser FAQ</Link></li>
+                                <li><Link href="/faq#organisers" className="hover:text-orange-500 transition-colors">Organiser FAQ</Link></li>
                             </ul>
                         </div>
                     </div>

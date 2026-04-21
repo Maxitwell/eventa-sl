@@ -5,7 +5,7 @@ import { useAuth } from "@/store/AuthContext";
 import { useToast } from "@/components/shared/ToastProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { User, Mail, Lock, Phone, MessageSquare, ShieldCheck } from "lucide-react";
+import { User, Mail, Lock, Phone, MessageSquare, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 /* ─────────────────────────────────────────
@@ -15,10 +15,12 @@ import Link from "next/link";
 function AuthField({
     label,
     icon,
+    rightElement,
     ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
     label: string;
     icon: React.ReactNode;
+    rightElement?: React.ReactNode;
 }) {
     return (
         <div className="space-y-2">
@@ -30,9 +32,14 @@ function AuthField({
                     {icon}
                 </span>
                 <input
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400 text-gray-900 text-sm"
+                    className={`w-full pl-11 ${rightElement ? "pr-11" : "pr-4"} py-3 bg-gray-50 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400 text-gray-900 text-sm`}
                     {...props}
                 />
+                {rightElement && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                        {rightElement}
+                    </span>
+                )}
             </div>
         </div>
     );
@@ -48,6 +55,8 @@ function SignupContent() {
     const [confirmEmail, setConfirmEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [role, setRole] = useState<"attendee" | "organizer">("attendee");
     const [isLoading, setIsLoading] = useState(false);
     const [authMode, setAuthMode] = useState<"email" | "phone">("email");
@@ -255,21 +264,31 @@ function SignupContent() {
                             <AuthField
                                 label="Password"
                                 icon={<Lock size={16} />}
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 required
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                rightElement={
+                                    <button type="button" tabIndex={-1} onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                }
                             />
 
                             <AuthField
                                 label="Confirm Password"
                                 icon={<Lock size={16} />}
-                                type="password"
+                                type={showConfirmPassword ? "text" : "password"}
                                 required
                                 placeholder="••••••••"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
+                                rightElement={
+                                    <button type="button" tabIndex={-1} onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                }
                             />
 
                             <div className="pt-2">
