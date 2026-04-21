@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { EventCard } from "@/components/shared/EventCard";
 import { EventCardSkeleton } from "@/components/shared/EventCardSkeleton";
@@ -13,7 +13,7 @@ import Link from "next/link";
 import { getPublishedEventsPaginated, EventEntity } from "@/lib/db";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function Discover() {
+function Discover() {
   const { currentUser, isLoggedIn } = useAuth();
   const { openTicketModal } = useModals();
   const { showToast } = useToast();
@@ -399,5 +399,13 @@ export default function Discover() {
         )}
       </div>
     </>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <Discover />
+    </Suspense>
   );
 }
