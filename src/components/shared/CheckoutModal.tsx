@@ -223,7 +223,7 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                             <button
                                 onClick={() => setMethod("card")}
                                 disabled
-                                className={`flex-1 py-3 px-3 rounded-lg border-2 text-xs flex flex-col items-center gap-1 font-bold transition-all ${method === "card"
+                                className={`flex-1 py-3 px-2 rounded-lg border-2 text-[10px] flex flex-col items-center gap-1 font-bold transition-all leading-tight ${method === "card"
                                     ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
                                     : "border-gray-200 bg-white text-gray-400 cursor-not-allowed"
                                     }`}
@@ -232,17 +232,17 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                             </button>
                             <button
                                 onClick={() => setMethod("ussd")}
-                                className={`flex-1 py-3 px-3 rounded-lg border-2 text-xs flex flex-col items-center gap-1 font-bold transition-all ${method === "ussd"
+                                className={`flex-1 py-3 px-2 rounded-lg border-2 text-[10px] flex flex-col items-center gap-1 font-bold transition-all leading-tight ${method === "ussd"
                                     ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
                                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                                     }`}
                             >
-                                <Smartphone size={18} /> Mobile Money
+                                <Smartphone size={18} /> <span className="text-center">Mobile<br />Money</span>
                             </button>
                             <button
                                 onClick={() => setMethod("transfer")}
                                 disabled
-                                className={`flex-1 py-3 px-3 rounded-lg border-2 text-xs flex flex-col items-center gap-1 font-bold transition-all ${method === "transfer"
+                                className={`flex-1 py-3 px-2 rounded-lg border-2 text-[10px] flex flex-col items-center gap-1 font-bold transition-all leading-tight ${method === "transfer"
                                     ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
                                     : "border-gray-200 bg-white text-gray-400 cursor-not-allowed"
                                     }`}

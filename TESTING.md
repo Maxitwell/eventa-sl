@@ -23,7 +23,7 @@ Work through these top to bottom. Auth and events must pass before testing check
 - [ ] Create an event with a capacity limit (e.g. 10 tickets)
 - [ ] Create an event with **no capacity limit** (unlimited)
 - [ ] Edit an existing event — changes reflect on the event page
-- [ ] Publish a draft event — appears on the homepage/events list
+- [ ] ~~Publish a draft event — appears on the homepage/events list~~
 - [ ] Pause a published event — ticket purchase button disabled on frontend
 
 ---
@@ -44,8 +44,8 @@ Work through these top to bottom. Auth and events must pass before testing check
 - [ ] Approve payment on phone — deposit webhook fires, ticket status becomes `valid`
 - [ ] Confirm ticket is emailed after payment confirmed
 - [ ] Decline/ignore the USSD push — ticket stays `payment_pending`, order stays `pending`
-- [ ] Try to buy more tickets than capacity — blocked at the atomic Firestore transaction level
-- [ ] Buy tickets right up to the capacity limit — last ticket goes through, next buyer is rejected
+- [*] Try to buy more tickets than capacity — blocked at the atomic Firestore transaction level
+- [* ] Buy tickets right up to the capacity limit — last ticket goes through, next buyer is rejected
 
 ---
 
@@ -53,7 +53,7 @@ Work through these top to bottom. Auth and events must pass before testing check
 
 - [ ] Set an event capacity to 5, buy 5 tickets — `ticketsSold` = 5
 - [ ] Attempt a 6th ticket purchase — rejected with "sold out" or capacity error
-- [ ] Simulate two simultaneous purchases for the last 1 ticket — only one succeeds
+- [*] Simulate two simultaneous purchases for the last 1 ticket — only one succeeds
 - [ ] Unlimited-capacity event (capacity = 0) — purchases never blocked by capacity check
 
 ---

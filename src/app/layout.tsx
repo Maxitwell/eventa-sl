@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -10,6 +10,13 @@ import "./globals.css";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  weight: ["400", "700", "900"],
 });
 
 export const viewport: Viewport = {
@@ -34,7 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${inter.variable} antialiased bg-gray-50 text-gray-900 pb-20 relative min-h-screen flex flex-col`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${playfair.variable} antialiased bg-gray-50 text-gray-900 pb-20 relative min-h-screen flex flex-col mx-4`}>
         <SerwistProvider swUrl="/serwist/sw.js">
           <Providers>
             <Navbar />

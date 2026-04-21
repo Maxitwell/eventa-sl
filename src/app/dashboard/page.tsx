@@ -113,7 +113,7 @@ function StatusPill({ status }: { status: string }) {
         failed: "bg-red-100 text-red-700 border-red-200",
     };
     return (
-        <span className={clsx("px-2 py-0.5 text-[10px] font-bold uppercase rounded border", map[status] ?? "bg-gray-100 text-gray-600 border-gray-200")}>
+        <span className={clsx("px-2 py-0.5 text-xs font-bold uppercase rounded border", map[status] ?? "bg-gray-100 text-gray-600 border-gray-200")}>
             {status.replace(/_/g, " ")}
         </span>
     );
@@ -356,6 +356,12 @@ export default function Dashboard() {
         { id: "settings", name: "Settings", icon: Settings },
     ];
 
+    const statCardClasses: Record<string, { icon: string; border: string; gradient: string }> = {
+        orange: { icon: "bg-orange-50 text-orange-500", border: "hover:border-orange-200", gradient: "from-orange-500/10" },
+        green:  { icon: "bg-green-50 text-green-500",   border: "hover:border-green-200",  gradient: "from-green-500/10"  },
+        purple: { icon: "bg-purple-50 text-purple-500", border: "hover:border-purple-200", gradient: "from-purple-500/10" },
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8">
             {/* ── Sidebar ───────────────────────────────────────────────── */}
@@ -371,7 +377,8 @@ export default function Dashboard() {
                     </span>
                 </div>
 
-                <nav className="flex md:flex-col gap-2 overflow-x-auto no-scrollbar bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                <nav className="relative flex md:flex-col gap-2 overflow-x-auto no-scrollbar bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="md:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none rounded-r-2xl z-10" />
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
@@ -395,7 +402,7 @@ export default function Dashboard() {
 
                 <button
                     onClick={handleLogout}
-                    className="w-full mt-4 hidden md:flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-all text-sm"
+                    className="w-full mt-4 flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition-all text-sm"
                 >
                     <LogOut size={18} /> Sign Out
                 </button>
@@ -422,15 +429,15 @@ export default function Dashboard() {
                                 { label: "Total Revenue", value: `Le ${totalRevenue.toLocaleString()}`, icon: BarChart, color: "green" },
                                 { label: "Total Capacity", value: totalCapacity.toLocaleString(), icon: Users, color: "purple" },
                             ].map(({ label, value, icon: Icon, color }) => (
-                                <div key={label} className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-32 relative overflow-hidden hover:border-${color}-200 transition-colors`}>
-                                    <div className={`w-10 h-10 rounded-full bg-${color}-50 text-${color}-500 flex items-center justify-center mb-2`}>
+                                <div key={label} className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-32 relative overflow-hidden ${statCardClasses[color].border} transition-colors`}>
+                                    <div className={`w-10 h-10 rounded-full ${statCardClasses[color].icon} flex items-center justify-center mb-2`}>
                                         <Icon size={20} />
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
                                         <p className="text-2xl font-bold text-gray-900">{value}</p>
                                     </div>
-                                    <div className={`absolute right-0 bottom-0 w-24 h-24 bg-gradient-to-tl from-${color}-500/10 to-transparent rounded-tl-[100px]`} />
+                                    <div className={`absolute right-0 bottom-0 w-24 h-24 bg-gradient-to-tl ${statCardClasses[color].gradient} to-transparent rounded-tl-[100px]`} />
                                 </div>
                             ))}
                         </div>
@@ -679,7 +686,28 @@ export default function Dashboard() {
                                     {isLoadingAttendees && <span className="ml-2 text-xs font-normal text-gray-400">Loading…</span>}
                                 </h3>
                             </div>
-                            <div className="overflow-x-auto">
+                            {/* Mobile card view */}
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {filteredAttendees.map((a) => (
+                                    <div key={a.id} className="p-4 space-y-1.5">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-medium text-gray-900 truncate">{a.guestName || "—"}</span>
+                                            <StatusPill status={a.status} />
+                                        </div>
+                                        <div className="text-xs text-gray-500 truncate">{a.guestEmail || "—"}</div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-600">{a.ticketType}</span>
+                                            <span className="font-medium text-gray-900">{a.pricePaid === 0 ? "Free" : `Le ${a.pricePaid.toLocaleString()}`}</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400">{new Date(a.purchaseDate).toLocaleDateString()}</div>
+                                    </div>
+                                ))}
+                                {!isLoadingAttendees && filteredAttendees.length === 0 && (
+                                    <div className="px-6 py-12 text-center text-gray-400">No attendees found</div>
+                                )}
+                            </div>
+                            {/* Desktop table view */}
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full text-sm whitespace-nowrap">
                                     <thead className="text-xs uppercase bg-gray-50 text-gray-500">
                                         <tr>
@@ -720,7 +748,7 @@ export default function Dashboard() {
                 {activeTab === "payouts" && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 text-sm text-amber-800">
-                            <strong>Platform fee: 5%</strong> is deducted from gross revenue. Payouts are sent to the mobile money number set in your event's payout details.
+                            <strong>Platform fee: 8%</strong> is deducted from gross revenue. Payouts are sent to the mobile money number set in your event's payout details.
                         </div>
 
                         {/* Per-event payout cards */}
@@ -728,7 +756,7 @@ export default function Dashboard() {
                             {events.map((event) => {
                                 const eventRevenue = eventRevenueMap.get(event.id) ?? 0;
                                 const existingPayout = payouts.find((p) => p.eventId === event.id);
-                                const netEstimate = Math.round(eventRevenue * 0.95);
+                                const netEstimate = Math.round(eventRevenue * 0.92);
                                 const isLoading = payoutLoading === event.id;
                                 return (
                                     <div key={event.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -776,13 +804,38 @@ export default function Dashboard() {
                                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                                     <h3 className="font-bold text-gray-900">Payout History</h3>
                                 </div>
-                                <div className="overflow-x-auto">
+                                {/* Mobile card view */}
+                                <div className="md:hidden divide-y divide-gray-100">
+                                    {payouts.map((p) => (
+                                        <div key={p.id} className="p-4 space-y-1.5">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-medium text-gray-900 truncate">{p.eventName}</span>
+                                                <StatusPill status={p.status} />
+                                            </div>
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-gray-500">Gross</span>
+                                                <span>Le {(p.grossRevenue || 0).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-gray-500">Fee (8%)</span>
+                                                <span className="text-red-600">−Le {(p.platformFee || 0).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-sm font-bold">
+                                                <span className="text-gray-700">Net Payout</span>
+                                                <span className="text-green-700">Le {p.amount.toLocaleString()}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Desktop table view */}
+                                <div className="hidden md:block overflow-x-auto">
                                     <table className="w-full text-sm whitespace-nowrap">
                                         <thead className="text-xs uppercase bg-gray-50 text-gray-500">
                                             <tr>
                                                 <th className="px-6 py-3 text-left">Event</th>
                                                 <th className="px-6 py-3 text-right">Gross</th>
-                                                <th className="px-6 py-3 text-right">Fee (5%)</th>
+                                                <th className="px-6 py-3 text-right">Fee (8%)</th>
                                                 <th className="px-6 py-3 text-right">Net</th>
                                                 <th className="px-6 py-3 text-left">Status</th>
                                                 <th className="px-6 py-3 text-left">Date</th>

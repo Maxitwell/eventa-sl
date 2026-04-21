@@ -2,6 +2,7 @@
 
 import { useState, Suspense, useEffect } from "react";
 import { useAuth } from "@/store/AuthContext";
+import { useToast } from "@/components/shared/ToastProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Phone } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +49,7 @@ function LoginContent() {
     const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
     const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, isLoggedIn, isLoading: isAuthLoading, currentUser } = useAuth();
+    const { showToast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -64,7 +66,7 @@ function LoginContent() {
         try {
             await loginWithEmail(email, password, false);
         } catch {
-            alert("Invalid email or password");
+            showToast("Invalid email or password", "error");
             setIsLoading(false);
         }
     };
@@ -82,7 +84,7 @@ function LoginContent() {
             const result = await loginWithPhone(formattedPhone);
             setConfirmationResult(result);
         } catch {
-            alert("Failed to send SMS. Make sure to use the correct country code.");
+            showToast("Failed to send SMS. Make sure to use the correct country code.", "error");
         } finally {
             setIsLoading(false);
         }
@@ -94,7 +96,7 @@ function LoginContent() {
         try {
             if (confirmationResult) await verifyOTP(confirmationResult, otp);
         } catch {
-            alert("Invalid verification code.");
+            showToast("Invalid verification code.", "error");
             setIsLoading(false);
         }
     };

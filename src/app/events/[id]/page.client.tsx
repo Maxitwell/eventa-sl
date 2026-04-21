@@ -107,7 +107,7 @@ export default function EventDetailsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="min-h-screen bg-gray-50 pb-[88px] lg:pb-20">
             {/* Nav Header (Minimal) */}
             <div className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
                 <button
@@ -157,6 +157,25 @@ export default function EventDetailsPage() {
                 </div>
             </div>
 
+            {/* Mobile sticky CTA — hidden on lg where sidebar is visible */}
+            <div className="fixed bottom-0 left-0 right-0 lg:hidden z-30 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-lg px-4 py-3 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                    <span className="text-xs text-gray-500 block">{isFree ? "General Admission" : "Starting from"}</span>
+                    <span className="text-xl font-extrabold text-gray-900 truncate block">
+                        {isFree ? "Free" : `${event.currency || "SLe"} ${event.price.toLocaleString()}`}
+                    </span>
+                </div>
+                {!isSoldOut ? (
+                    <Button size="lg" className="shrink-0 py-3 px-6" onClick={() => openTicketModal(event)}>
+                        <Ticket size={18} className="mr-2" /> Get Tickets
+                    </Button>
+                ) : (
+                    <Button size="lg" variant="outline" className="shrink-0 py-3 px-6" disabled>
+                        Sold Out
+                    </Button>
+                )}
+            </div>
+
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex flex-col lg:flex-row gap-8 lg:gap-12">
                 {/* Main Content Area */}
                 <div className="flex-1 space-y-10">
@@ -201,7 +220,7 @@ export default function EventDetailsPage() {
                     {/* Description */}
                     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100">
                         <h2 className="text-xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">About this Event</h2>
-                        <div className="prose prose-orange max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap">
+                        <div className="max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap text-base">
                             {event.description || "No description provided."}
                         </div>
                     </div>

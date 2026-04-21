@@ -104,7 +104,7 @@ export function TicketModal({ isOpen, onClose, event, onProceedToCheckout }: Tic
                                     <button
                                         onClick={() => handleUpdate(ticket.name, price, -1)}
                                         disabled={qty === 0}
-                                        className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors border border-transparent"
+                                        className="w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors border border-transparent"
                                     >
                                         <Minus size={14} />
                                     </button>
@@ -112,7 +112,7 @@ export function TicketModal({ isOpen, onClose, event, onProceedToCheckout }: Tic
                                     <button
                                         onClick={() => handleUpdate(ticket.name, price, 1)}
                                         // Optional: Check against ticket.quantity available
-                                        className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 flex items-center justify-center transition-colors border border-transparent"
+                                        className="w-11 h-11 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 flex items-center justify-center transition-colors border border-transparent"
                                     >
                                         <Plus size={14} />
                                     </button>

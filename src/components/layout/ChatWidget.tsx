@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sparkles, X, Bot, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function ChatWidget() {
     const [isOpen, setIsOpen] = useState(false);
+    const pathname = usePathname();
+    if (pathname.startsWith("/scanner")) return null;
     const [messages, setMessages] = useState([
         {
             id: 1,
@@ -62,7 +65,7 @@ export function ChatWidget() {
                         initial={{ y: 50, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 50, opacity: 0 }}
-                        className="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col h-[500px] z-50 overflow-hidden"
+                        className="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col h-[500px] max-h-[calc(100dvh-8rem)] z-50 overflow-hidden"
                     >
                         {/* Header */}
                         <div className="bg-gradient-to-r from-orange-500 to-pink-500 p-4 shrink-0 flex justify-between items-center text-white">

@@ -103,6 +103,16 @@ export default function CreateEvent() {
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
     const [googleMapLink, setGoogleMapLink] = useState("");
+    const [mapLinkManual, setMapLinkManual] = useState(false);
+
+    const handleLocationChange = (value: string) => {
+        setLocation(value);
+        if (!mapLinkManual && value.trim()) {
+            setGoogleMapLink(`https://maps.google.com/?q=${encodeURIComponent(value + ", Sierra Leone")}`);
+        } else if (!mapLinkManual && !value.trim()) {
+            setGoogleMapLink("");
+        }
+    };
     const [description, setDescription] = useState("");
     const [organizerName, setOrganizerName] = useState("");
     const [talents, setTalents] = useState<{ id: string; name: string; role: string }[]>([]);
@@ -379,7 +389,7 @@ export default function CreateEvent() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
             <div className="mb-10 text-center">
                 <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
                     Create an Event
@@ -389,7 +399,7 @@ export default function CreateEvent() {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
+            <form id="create-event-form" onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
                 <div className="p-8 sm:p-12 space-y-10">
 
                     {/* Top Toggles */}
@@ -522,7 +532,7 @@ export default function CreateEvent() {
                                     placeholder="e.g. Country Lodge, Hill Station"
                                     icon={<MapPin size={16} />}
                                     value={location}
-                                    onChange={(e) => setLocation(e.target.value)}
+                                    onChange={(e) => handleLocationChange(e.target.value)}
                                     required
                                 />
                             ) : (
@@ -536,13 +546,42 @@ export default function CreateEvent() {
                                 />
                             )}
                             {eventType === "physical" && (
-                                <Input
-                                    label="Google Map Link (Optional)"
-                                    placeholder="e.g. https://maps.app.goo.gl/..."
-                                    icon={<Map size={16} />}
-                                    value={googleMapLink}
-                                    onChange={(e) => setGoogleMapLink(e.target.value)}
-                                />
+                                <div>
+                                    <Input
+                                        label="Google Map Link"
+                                        placeholder="Auto-filled from venue — or paste your own"
+                                        icon={<Map size={16} />}
+                                        value={googleMapLink}
+                                        onChange={(e) => {
+                                            setGoogleMapLink(e.target.value);
+                                            setMapLinkManual(true);
+                                        }}
+                                    />
+                                    {googleMapLink && (
+                                        <div className="flex items-center gap-3 mt-2">
+                                            <a
+                                                href={googleMapLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-orange-600 font-bold hover:underline flex items-center gap-1"
+                                            >
+                                                <Map size={12} /> Preview on Google Maps →
+                                            </a>
+                                            {mapLinkManual && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setMapLinkManual(false);
+                                                        handleLocationChange(location);
+                                                    }}
+                                                    className="text-xs text-gray-400 hover:text-gray-600"
+                                                >
+                                                    Reset to auto
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
 
@@ -668,7 +707,7 @@ export default function CreateEvent() {
                             </div>
                         </button>
 
-                        <div className="flex items-center gap-2 bg-[#f0f9ff] text-[#0284c7] p-3 rounded-xl text-sm border border-[#bae6fd]">
+                        <div className="flex items-center gap-2 bg-blue-50 text-blue-600 p-3 rounded-xl text-sm border border-blue-200">
                             <Info size={16} className="shrink-0" />
                             An 8% transaction fee applies to all paid tickets.
                         </div>
@@ -874,6 +913,21 @@ export default function CreateEvent() {
                     </div>
                 </div>
             </form>
+
+            {/* Sticky publish bar — floats above page on all screen sizes */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-lg px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+                <p className="text-sm text-gray-500 truncate hidden sm:block">
+                    {title ? `Creating: ${title.slice(0, 50)}${title.length > 50 ? "…" : ""}` : "New Event"}
+                </p>
+                <Button
+                    type="submit"
+                    form="create-event-form"
+                    isLoading={isPublishing}
+                    className="ml-auto px-8"
+                >
+                    Publish Event
+                </Button>
+            </div>
 
             {/* Cropper Modal */}
             {showCropper && uploadedImage && (

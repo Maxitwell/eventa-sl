@@ -37,6 +37,14 @@ export function Modal({
         };
     }, [isOpen]);
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && isOpen) onClose();
+        };
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [isOpen, onClose]);
+
     if (!isMounted) return null;
 
     const maxWidthClasses = {
@@ -54,6 +62,9 @@ export function Modal({
             onClick={onClose}
         >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={title}
                 className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full ${maxWidthClasses[maxWidth]
                     } max-h-[90vh] flex flex-col transform transition-transform duration-300 ${isOpen ? "scale-100 translate-y-0" : "scale-95 translate-y-full sm:translate-y-4"
                     }`}

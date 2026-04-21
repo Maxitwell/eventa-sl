@@ -622,7 +622,7 @@ export default function EditEvent() {
                             </div>
                         )}
 
-                        <div className="flex items-center gap-2 bg-[#f0f9ff] text-[#0284c7] p-3 rounded-xl text-sm border border-[#bae6fd]">
+                        <div className="flex items-center gap-2 bg-blue-50 text-blue-600 p-3 rounded-xl text-sm border border-blue-200">
                             <Info size={16} className="shrink-0" />
                             An 8% transaction fee applies to all paid tickets.
                         </div>

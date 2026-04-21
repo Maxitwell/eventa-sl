@@ -2,6 +2,7 @@
 
 import { useState, Suspense, useEffect } from "react";
 import { useAuth } from "@/store/AuthContext";
+import { useToast } from "@/components/shared/ToastProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { User, Mail, Lock, Phone, MessageSquare, ShieldCheck } from "lucide-react";
@@ -56,6 +57,7 @@ function SignupContent() {
     const [agreeTerms, setAgreeTerms] = useState(false);
 
     const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, updateProfile, isLoggedIn, isLoading: isAuthLoading, currentUser } = useAuth();
+    const { showToast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -68,9 +70,9 @@ function SignupContent() {
 
     const handleEmailSignup = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!agreeTerms) { alert("You must agree to the Terms and Privacy Policy."); return; }
-        if (email !== confirmEmail) { alert("Email addresses do not match."); return; }
-        if (password !== confirmPassword) { alert("Passwords do not match."); return; }
+        if (!agreeTerms) { showToast("You must agree to the Terms and Privacy Policy.", "error"); return; }
+        if (email !== confirmEmail) { showToast("Email addresses do not match.", "error"); return; }
+        if (password !== confirmPassword) { showToast("Passwords do not match.", "error"); return; }
         setIsLoading(true);
         try {
             const fullName = `${firstName.trim()} ${surname.trim()}`;
@@ -85,27 +87,27 @@ function SignupContent() {
             const dynamicRedirect = searchParams.get("redirect") || (role === "organizer" ? "/dashboard" : "/");
             router.push(dynamicRedirect);
         } catch (error) {
-            alert(error instanceof Error ? error.message : "Failed to create account");
+            showToast(error instanceof Error ? error.message : "Failed to create account", "error");
             setIsLoading(false);
         }
     };
 
     const handleGoogleSignup = async () => {
-        if (!agreeTerms) { alert("You must agree to the Terms and Privacy Policy."); return; }
+        if (!agreeTerms) { showToast("You must agree to the Terms and Privacy Policy.", "error"); return; }
         setIsLoading(true);
         try { await loginWithGoogle(); } catch { setIsLoading(false); }
     };
 
     const handleSendOTP = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!agreeTerms) { alert("You must agree to the Terms and Privacy Policy."); return; }
+        if (!agreeTerms) { showToast("You must agree to the Terms and Privacy Policy.", "error"); return; }
         setIsLoading(true);
         try {
             const formattedPhone = phoneNumber.startsWith("+") ? phoneNumber : `+232${phoneNumber.replace(/^0+/, "")}`;
             const result = await loginWithPhone(formattedPhone);
             setConfirmationResult(result);
         } catch {
-            alert("Failed to send SMS. Make sure to use the correct country code.");
+            showToast("Failed to send SMS. Make sure to use the correct country code.", "error");
         } finally {
             setIsLoading(false);
         }
@@ -121,7 +123,7 @@ function SignupContent() {
                 if (fullName.trim()) await updateProfile(fullName);
             }
         } catch {
-            alert("Invalid verification code.");
+            showToast("Invalid verification code.", "error");
             setIsLoading(false);
         }
     };

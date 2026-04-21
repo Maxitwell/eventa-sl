@@ -7,7 +7,8 @@
       "Bash(vercel whoami *)",
       "Bash(node -e \"const pkg = require\\('./node_modules/lucide-react/package.json'\\); console.log\\(pkg.version\\);\")",
       "Bash(npx tsc *)",
-      "Bash(vercel --prod)"
+      "Bash(vercel --prod)",
+      "Bash(xargs grep *)"
     ]
   }
 }
