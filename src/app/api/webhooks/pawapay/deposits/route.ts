@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { sendTicketEmail } from '@/lib/delivery';
 import { assertWebhookSecret, isWebhookReplay } from '@/lib/webhook-security';
+import { sendWhatsAppMessage } from '@/lib/twilio';
 
 export async function POST(request: Request) {
     try {
@@ -88,20 +89,55 @@ export async function POST(request: Request) {
             }
         }
 
-        // Send out an automated email receipt to everyone who purchased!
+        // Send confirmations to everyone who purchased
         if (status === "COMPLETED") {
             const deliveryPromises = querySnapshot.docs.map(async (docSnap) => {
                 const data = docSnap.data();
+
+                // Email confirmation (web checkout)
                 if (data.guestEmail) {
                     await sendTicketEmail(
                         data.guestEmail,
                         data.guestName || "there",
                         data.eventName || "Your Event",
-                        data.qrCode // The securely signed base64 payload
+                        data.qrCode
+                    );
+                }
+
+                // WhatsApp confirmation (WhatsApp checkout)
+                if (data.channel === "whatsapp" && data.waFrom) {
+                    const ticketId = docSnap.id.slice(-8).toUpperCase();
+                    const msg =
+                        `✅ *Payment Confirmed!*\n\n` +
+                        `Your ticket for *${data.eventName ?? "the event"}* is ready.\n\n` +
+                        `🎟️ Type: ${data.ticketType ?? "General Admission"}\n` +
+                        `🆔 ID: ${ticketId}\n` +
+                        `📷 QR: ${data.qrCode ?? "N/A"}\n\n` +
+                        `Show this QR code at the entrance. See you there! 🎉\n\n` +
+                        `Reply *menu* to start over.`;
+                    await sendWhatsAppMessage(data.waFrom, msg).catch((err) =>
+                        console.error("[PawaPay Webhook] WhatsApp notify failed:", err)
                     );
                 }
             });
             await Promise.allSettled(deliveryPromises);
+        }
+
+        // Notify WhatsApp users when payment fails
+        if (status === "FAILED") {
+            const failNotifyPromises = querySnapshot.docs.map(async (docSnap) => {
+                const data = docSnap.data();
+                if (data.channel === "whatsapp" && data.waFrom) {
+                    const msg =
+                        `❌ *Payment Failed*\n\n` +
+                        `Your payment for *${data.eventName ?? "the event"}* could not be processed.\n\n` +
+                        `Reply *1* to try again, or *3* for support.`;
+                    await sendWhatsAppMessage(data.waFrom, msg).catch((err) =>
+                        console.error("[PawaPay Webhook] WhatsApp fail-notify error:", err)
+                    );
+                }
+            });
+            await Promise.allSettled(failNotifyPromises);
         }
         
         // If they checked out successfully, we must now safely increment the Event's capacity!

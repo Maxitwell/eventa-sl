@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublishedEvents } from "@/lib/db";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { validateTwilioSignature } from "@/lib/twilio";
 
 const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.sandbox.pawapay.io/v1';
 
@@ -59,6 +60,17 @@ export async function POST(req: NextRequest) {
     try {
         const text = await req.text();
         const params = new URLSearchParams(text);
+
+        // Validate the request came from Twilio (skip in dev if no credentials set)
+        if (process.env.TWILIO_AUTH_TOKEN) {
+            const signature = req.headers.get("x-twilio-signature") ?? "";
+            const url = `${req.headers.get("x-forwarded-proto") ?? "https"}://${req.headers.get("host")}/api/whatsapp`;
+            const paramMap: Record<string, string> = {};
+            params.forEach((v, k) => { paramMap[k] = v; });
+            if (!validateTwilioSignature(url, paramMap, signature)) {
+                return new NextResponse("Forbidden", { status: 403 });
+            }
+        }
 
         const from = params.get("From"); // e.g. "whatsapp:+23276123456"
         const body = params.get("Body")?.trim() ?? "";
