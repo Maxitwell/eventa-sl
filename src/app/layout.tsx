@@ -3,7 +3,6 @@ import { Inter, Playfair_Display } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { ChatWidget } from "@/components/layout/ChatWidget";
 import { SerwistProvider } from "./serwist";
 import "./globals.css";
 
@@ -49,7 +48,6 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
-            <ChatWidget />
           </Providers>
         </SerwistProvider>
       </body>

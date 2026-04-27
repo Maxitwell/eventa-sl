@@ -63,6 +63,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         className={twMerge(
                             clsx(
                                 "form-input",
+                                "text-gray-900 placeholder:text-gray-400",
                                 icon && "!pl-11",
                                 error && "border-red-500 focus:border-red-500 focus:box-shadow-red",
                                 className

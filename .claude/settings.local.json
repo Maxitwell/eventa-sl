@@ -8,7 +8,10 @@
       "Bash(node -e \"const pkg = require\\('./node_modules/lucide-react/package.json'\\); console.log\\(pkg.version\\);\")",
       "Bash(npx tsc *)",
       "Bash(vercel --prod)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(npx vercel *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
