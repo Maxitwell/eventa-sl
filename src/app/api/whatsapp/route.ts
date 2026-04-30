@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
         // Validate the request came from Twilio (skip in dev if no credentials set)
         if (process.env.TWILIO_AUTH_TOKEN) {
             const signature = req.headers.get("x-twilio-signature") ?? "";
-            // Use explicit env var so the URL matches exactly what's in Twilio console
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get("host")}`;
+            // APP_URL must match the webhook URL configured in Twilio console exactly
+            const baseUrl = process.env.APP_URL ?? `https://${req.headers.get("host")}`;
             const url = `${baseUrl}/api/whatsapp`;
             const paramMap: Record<string, string> = {};
             params.forEach((v, k) => { paramMap[k] = v; });
