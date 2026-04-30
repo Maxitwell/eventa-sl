@@ -362,10 +362,12 @@ export async function POST(req: NextRequest) {
                             body: JSON.stringify(pawapayPayload),
                         });
 
+                        const ppBody = await ppRes.json().catch(() => ({}));
                         pawapayOk = ppRes.ok;
                         if (!ppRes.ok) {
-                            const detail = await ppRes.json().catch(() => ({}));
-                            console.error('[WhatsApp PawaPay] deposit error:', detail);
+                            console.error('[WhatsApp PawaPay] deposit error:', ppBody);
+                        } else {
+                            console.log('[WhatsApp PawaPay] deposit accepted:', JSON.stringify(ppBody));
                         }
                     } catch (err) {
                         console.error('[WhatsApp PawaPay] fetch error:', err);

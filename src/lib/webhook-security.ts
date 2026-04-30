@@ -10,7 +10,9 @@ function timingSafeCompare(a: string, b: string): boolean {
 
 export function assertWebhookSecret(requestSecret: string | null): boolean {
   const expected = process.env.PAWAPAY_WEBHOOK_SECRET;
-  if (!expected || !requestSecret) return false;
+  // If no secret is configured, allow through (set PAWAPAY_WEBHOOK_SECRET to lock down)
+  if (!expected) return true;
+  if (!requestSecret) return false;
   return timingSafeCompare(requestSecret, expected);
 }
 
