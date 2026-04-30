@@ -128,6 +128,7 @@ export async function POST(req: NextRequest) {
                                 currency: e.currency || 'NLe',
                                 ticketType: e.tickets?.[0]?.name ?? 'General Admission',
                             }));
+                        console.log(`[WhatsApp] Fetched ${snap.docs.length} published events, showing page 0 (${allEvents.slice(0, PAGE_SIZE).length} items)`);
                         page = 0;
                     } else {
                         // "more" — advance to next page
