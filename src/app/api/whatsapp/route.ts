@@ -107,7 +107,6 @@ export async function POST(req: NextRequest) {
                     const db = getAdminDb();
                     const snap = await db.collection('events')
                         .where('status', '==', 'published')
-                        .orderBy('createdAt', 'desc')
                         .limit(5)
                         .get();
                     const topEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
