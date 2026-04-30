@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 
 const ADMIN_EMAIL = 'admin@eventa.africa';
-const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.sandbox.pawapay.io/v1';
+const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
 
 async function verifyAdminToken(request: Request): Promise<boolean> {
     const authHeader = request.headers.get('authorization');

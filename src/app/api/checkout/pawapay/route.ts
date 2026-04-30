@@ -109,7 +109,7 @@ export async function POST(request: Request) {
             returnUrl: "https://eventa.africa/tickets"
         };
 
-        const PAWAPAY_API_URL = "https://api.sandbox.pawapay.io/v1/deposits";
+        const PAWAPAY_API_URL = `${process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1'}/deposits`;
         const pawapayResponse = await fetch(PAWAPAY_API_URL, {
             method: 'POST',
             headers: {

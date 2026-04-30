@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 
 const PLATFORM_FEE_RATE = 0.05; // 5% platform fee
-const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.sandbox.pawapay.io/v1';
+const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
 
 export async function POST(request: Request) {
     const authHeader = request.headers.get('authorization');

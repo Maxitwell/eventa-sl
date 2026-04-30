@@ -3,7 +3,7 @@ import { getPublishedEvents } from "@/lib/db";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { validateTwilioSignature } from "@/lib/twilio";
 
-const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.sandbox.pawapay.io/v1';
+const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
 
 type CachedEvent = {
     id: string;
