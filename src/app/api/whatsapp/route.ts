@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
                 if (digitsOnly.length >= 6) {
                     // Format phone with Sierra Leone country code
                     let phone = digitsOnly;
-                    if (!phone.startsWith('232')) phone = '232' + phone;
+                    if (!phone.startsWith('232')) phone = '232' + phone.replace(/^0+/, '');
 
                     const depositId = `wa-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
                     const waUserId = `wa_${from.replace(/\D/g, '')}`;

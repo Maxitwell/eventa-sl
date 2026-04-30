@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     // Format phone for PawaPay
     let formattedPhone = payoutDetails.accountNumber.replace(/\D/g, '');
     if (!formattedPhone.startsWith('232')) {
-        formattedPhone = '232' + formattedPhone;
+        formattedPhone = '232' + formattedPhone.replace(/^0+/, '');
     }
 
     const pawapayPayload = {
