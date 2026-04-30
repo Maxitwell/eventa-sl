@@ -107,9 +107,11 @@ export async function POST(req: NextRequest) {
                     const db = getAdminDb();
                     const snap = await db.collection('events')
                         .where('status', '==', 'published')
-                        .limit(5)
                         .get();
-                    const topEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const topEvents = snap.docs
+                        .map(d => ({ id: d.id, ...d.data() as any }))
+                        .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+                        .slice(0, 5);
 
                     if (topEvents.length > 0) {
                         const cachedList: CachedEvent[] = topEvents.map((e: any) => ({
