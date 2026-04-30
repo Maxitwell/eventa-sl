@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPublishedEvents } from "@/lib/db";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { validateTwilioSignature } from "@/lib/twilio";
 
@@ -105,11 +104,16 @@ export async function POST(req: NextRequest) {
         if (session.step === "browsing") {
             if (lowerBody === "1") {
                 try {
-                    const events = await getPublishedEvents();
-                    const topEvents = events.slice(0, 5);
+                    const db = getAdminDb();
+                    const snap = await db.collection('events')
+                        .where('status', '==', 'published')
+                        .orderBy('createdAt', 'desc')
+                        .limit(5)
+                        .get();
+                    const topEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                     if (topEvents.length > 0) {
-                        const cachedList: CachedEvent[] = topEvents.map((e) => ({
+                        const cachedList: CachedEvent[] = topEvents.map((e: any) => ({
                             id: e.id,
                             title: e.title,
                             date: e.date,
