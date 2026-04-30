@@ -137,7 +137,8 @@ export async function POST(req: NextRequest) {
                     } else {
                         responseMessage = "No upcoming events right now. Check back later!";
                     }
-                } catch {
+                } catch (err) {
+                    console.error("[WhatsApp] Failed to load events:", err);
                     responseMessage = "Oops, couldn't load events. Please try again.";
                 }
 
