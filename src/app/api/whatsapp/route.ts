@@ -3,6 +3,7 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { validateTwilioSignature } from "@/lib/twilio";
 
 const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
+const PAGE_SIZE = 10;
 
 type CachedEvent = {
     id: string;
@@ -22,8 +23,10 @@ type SessionState = {
     price?: number;
     currency?: string;
     depositId?: string;
-    /** Serialised event list from last "1" browse — avoids re-fetching on "buy N" */
+    /** Full cached event list — avoids re-fetching on "buy N" or "more" */
     eventsList?: CachedEvent[];
+    /** Current pagination offset (multiples of PAGE_SIZE) */
+    eventsPage?: number;
     updatedAt?: string;
 };
 
@@ -102,40 +105,52 @@ export async function POST(req: NextRequest) {
 
         // ── Step: browsing ────────────────────────────────────────────────────
         if (session.step === "browsing") {
-            if (lowerBody === "1") {
+            if (lowerBody === "1" || lowerBody === "more") {
                 try {
-                    const db = getAdminDb();
-                    const snap = await db.collection('events')
-                        .where('status', '==', 'published')
-                        .get();
-                    const topEvents = snap.docs
-                        .map(d => ({ id: d.id, ...d.data() as any }))
-                        .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
-                        .slice(0, 5);
+                    let allEvents: CachedEvent[] = session.eventsList ?? [];
+                    let page = session.eventsPage ?? 0;
 
-                    if (topEvents.length > 0) {
-                        const cachedList: CachedEvent[] = topEvents.map((e: any) => ({
-                            id: e.id,
-                            title: e.title,
-                            date: e.date,
-                            location: e.location,
-                            price: e.price,
-                            currency: e.currency || 'NLe',
-                            ticketType: e.tickets?.[0]?.name ?? 'General Admission',
-                        }));
+                    // On "1" always re-fetch and reset to page 0
+                    if (lowerBody === "1" || allEvents.length === 0) {
+                        const db = getAdminDb();
+                        const snap = await db.collection('events')
+                            .where('status', '==', 'published')
+                            .get();
+                        allEvents = snap.docs
+                            .map(d => ({ id: d.id, ...d.data() as any }))
+                            .sort((a: any, b: any) => (a.date ?? '').localeCompare(b.date ?? ''))
+                            .map((e: any) => ({
+                                id: e.id,
+                                title: e.title,
+                                date: e.date,
+                                location: e.location,
+                                price: e.price,
+                                currency: e.currency || 'NLe',
+                                ticketType: e.tickets?.[0]?.name ?? 'General Admission',
+                            }));
+                        page = 0;
+                    } else {
+                        // "more" — advance to next page
+                        page = page + 1;
+                    }
 
-                        // Persist list so "buy N" doesn't need to re-fetch
-                        await setSession(from, { ...session, step: 'browsing', eventsList: cachedList });
+                    const pageEvents = allEvents.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+                    const hasMore = allEvents.length > (page + 1) * PAGE_SIZE;
 
+                    await setSession(from, { ...session, step: 'browsing', eventsList: allEvents, eventsPage: page });
+
+                    if (pageEvents.length > 0) {
+                        const start = page * PAGE_SIZE;
                         responseMessage = "✨ *Upcoming Events* ✨\n\n";
-                        cachedList.forEach((ev, i) => {
+                        pageEvents.forEach((ev, i) => {
                             responseMessage +=
-                                `${i + 1}. *${ev.title}*\n` +
+                                `${start + i + 1}. *${ev.title}*\n` +
                                 `📅 ${ev.date}\n` +
                                 `📍 ${ev.location}\n` +
                                 `💰 ${ev.currency} ${ev.price}\n\n`;
                         });
-                        responseMessage += "Reply *buy [number]* to get tickets (e.g. _buy 1_).";
+                        responseMessage += `Reply *buy [number]* to get tickets (e.g. _buy 1_).`;
+                        if (hasMore) responseMessage += `\nReply *more* to see more events.`;
                     } else {
                         responseMessage = "No upcoming events right now. Check back later!";
                     }
