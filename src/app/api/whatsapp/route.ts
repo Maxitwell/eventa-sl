@@ -64,13 +64,15 @@ export async function POST(req: NextRequest) {
         // Validate the request came from Twilio (skip in dev if no credentials set)
         if (process.env.TWILIO_AUTH_TOKEN) {
             const signature = req.headers.get("x-twilio-signature") ?? "";
-            // APP_URL must match the webhook URL configured in Twilio console exactly
-            const baseUrl = process.env.APP_URL ?? `https://${req.headers.get("host")}`;
+            // x-forwarded-host is the real public domain on Vercel/proxied environments
+            const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
+            const baseUrl = (process.env.APP_URL ?? `https://${host}`).replace(/\/$/, "");
             const url = `${baseUrl}/api/whatsapp`;
             const paramMap: Record<string, string> = {};
             params.forEach((v, k) => { paramMap[k] = v; });
-            if (!validateTwilioSignature(url, paramMap, signature)) {
-                console.error("[WhatsApp] Signature validation failed. url:", url);
+            const valid = validateTwilioSignature(url, paramMap, signature);
+            if (!valid) {
+                console.error("[WhatsApp] Sig fail — url used:", url, "host header:", host, "APP_URL:", process.env.APP_URL);
                 return new NextResponse("Forbidden", { status: 403 });
             }
         }
