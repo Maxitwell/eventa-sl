@@ -260,6 +260,7 @@ export async function POST(req: NextRequest) {
                             correspondent: 'ORANGE_SLE',
                             payer: { type: 'MSISDN', address: { value: phone } },
                             statementDescription: `Eventa: ${String(session.eventName ?? '').slice(0, 22)}`,
+                            customerTimestamp: new Date().toISOString(),
                             metadata: [
                                 { fieldName: 'channel', fieldValue: 'whatsapp', isPII: false },
                                 { fieldName: 'waFrom', fieldValue: from, isPII: true },
