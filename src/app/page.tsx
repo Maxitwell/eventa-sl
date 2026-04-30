@@ -174,7 +174,7 @@ function Discover() {
                   Browse all events <ArrowRight size={16} />
                 </a>
                 <a
-                  href="https://wa.me/14155238886?text=join%20thought-stiff"
+                  href="https://wa.me/12184148971"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="border-2 border-[#25d366] text-[#128c4e] px-7 py-3.5 rounded-full font-bold hover:bg-[#e8fff0] transition flex items-center justify-center gap-2"

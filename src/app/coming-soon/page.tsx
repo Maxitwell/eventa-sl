@@ -188,7 +188,7 @@ export default function ComingSoonPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.55 }}
-          href="https://wa.me/14155238886?text=join%20thought-stiff"
+          href="https://wa.me/12184148971"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-3 bg-[#25d366] text-white px-8 py-4 rounded-full font-bold text-sm sm:text-base hover:bg-[#1ebe5d] active:scale-95 transition-all duration-150 shadow-lg shadow-[#25d366]/20"

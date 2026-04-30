@@ -57,7 +57,7 @@ export function Footer() {
 
                         {/* Right: CTA */}
                         <a
-                            href="https://wa.me/14155238886?text=join%20thought-stiff"
+                            href="https://wa.me/12184148971"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="relative z-10 bg-[#25d366] text-white font-bold py-4 px-8 rounded-full hover:opacity-90 transition-opacity flex items-center gap-2 whitespace-nowrap shrink-0 shadow-lg"
