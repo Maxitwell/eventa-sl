@@ -5,18 +5,28 @@ import { validateTwilioSignature } from "@/lib/twilio";
 const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
 const PAGE_SIZE = 10;
 
+type CachedTicketTier = {
+    name: string;
+    price: number;
+};
+
 type CachedEvent = {
     id: string;
     title: string;
     date: string;
     location: string;
-    price: number;
     currency: string;
-    ticketType: string;
+    tickets: CachedTicketTier[];
 };
 
 type SessionState = {
-    step: "browsing" | "event_selected" | "payment_pending";
+    step: "browsing" | "ticket_selection" | "event_selected" | "payment_pending";
+    // ticket_selection state
+    pendingEventId?: string;
+    pendingEventName?: string;
+    pendingTickets?: CachedTicketTier[];
+    pendingCurrency?: string;
+    // event_selected / payment_pending state
     eventId?: string;
     eventName?: string;
     ticketType?: string;
@@ -124,9 +134,10 @@ export async function POST(req: NextRequest) {
                                 title: e.title,
                                 date: e.date,
                                 location: e.location,
-                                price: e.price,
                                 currency: e.currency || 'NLe',
-                                ticketType: e.tickets?.[0]?.name ?? 'General Admission',
+                                tickets: Array.isArray(e.tickets) && e.tickets.length > 0
+                                    ? e.tickets.map((t: any) => ({ name: t.name, price: t.price }))
+                                    : [{ name: 'General Admission', price: e.price ?? 0 }],
                             }));
                         console.log(`[WhatsApp] Fetched ${snap.docs.length} published events, showing page 0 (${allEvents.slice(0, PAGE_SIZE).length} items)`);
                         page = 0;
@@ -144,11 +155,17 @@ export async function POST(req: NextRequest) {
                         const start = page * PAGE_SIZE;
                         responseMessage = "✨ *Upcoming Events* ✨\n\n";
                         pageEvents.forEach((ev, i) => {
+                            const prices = ev.tickets.map(t => t.price);
+                            const minPrice = Math.min(...prices);
+                            const maxPrice = Math.max(...prices);
+                            const priceStr = minPrice === maxPrice
+                                ? `${ev.currency} ${minPrice}`
+                                : `${ev.currency} ${minPrice} – ${maxPrice}`;
                             responseMessage +=
                                 `${start + i + 1}. *${ev.title}*\n` +
                                 `📅 ${ev.date}\n` +
                                 `📍 ${ev.location}\n` +
-                                `💰 ${ev.currency} ${ev.price}\n\n`;
+                                `💰 ${priceStr}\n\n`;
                         });
                         responseMessage += `Reply *buy [number]* to get tickets (e.g. _buy 1_).`;
                         if (hasMore) responseMessage += `\nReply *more* to see more events.`;
@@ -199,26 +216,73 @@ export async function POST(req: NextRequest) {
                     responseMessage = `Invalid number. Choose between 1 and ${cachedList.length}.`;
                 } else {
                     const ev = cachedList[eventNum - 1];
-                    await setSession(from, {
-                        ...session,
-                        step: 'event_selected',
-                        eventId: ev.id,
-                        eventName: ev.title,
-                        ticketType: ev.ticketType,
-                        price: ev.price,
-                        currency: ev.currency,
-                    });
-                    responseMessage =
-                        `Great choice! Checkout for *${ev.title}*.\n\n` +
-                        `🎟️ Ticket: ${ev.ticketType}\n` +
-                        `💰 Price: ${ev.currency} ${ev.price}\n\n` +
-                        `Please reply with your *Mobile Money number* (e.g. _076123456_) to receive the payment prompt.`;
+                    if (ev.tickets.length === 1) {
+                        // Only one tier — go straight to payment
+                        await setSession(from, {
+                            ...session,
+                            step: 'event_selected',
+                            eventId: ev.id,
+                            eventName: ev.title,
+                            ticketType: ev.tickets[0].name,
+                            price: ev.tickets[0].price,
+                            currency: ev.currency,
+                        });
+                        responseMessage =
+                            `Great choice! Checkout for *${ev.title}*.\n\n` +
+                            `🎟️ Ticket: ${ev.tickets[0].name}\n` +
+                            `💰 Price: ${ev.currency} ${ev.tickets[0].price}\n\n` +
+                            `Please reply with your *Mobile Money number* (e.g. _076123456_) to receive the payment prompt.`;
+                    } else {
+                        // Multiple tiers — ask user to pick one
+                        await setSession(from, {
+                            ...session,
+                            step: 'ticket_selection',
+                            pendingEventId: ev.id,
+                            pendingEventName: ev.title,
+                            pendingTickets: ev.tickets,
+                            pendingCurrency: ev.currency,
+                        });
+                        responseMessage = `🎟️ *${ev.title}*\n\nChoose your ticket type:\n\n`;
+                        ev.tickets.forEach((t, i) => {
+                            responseMessage += `${i + 1}. ${t.name} — ${ev.currency} ${t.price}\n`;
+                        });
+                        responseMessage += `\nReply with the number (e.g. _1_) to select.\nReply *back* to go back.`;
+                    }
                 }
 
             } else if (lowerBody === "3") {
                 responseMessage = "📞 *Support*\n\nContact us:\n• WhatsApp: +232 76 000 000\n• Email: support@eventa.sl\n\nReply *menu* to go back.";
             } else {
                 responseMessage = WELCOME_MSG;
+            }
+
+        // ── Step: ticket_selection — user picks a tier ───────────────────────
+        } else if (session.step === "ticket_selection") {
+            if (lowerBody === "back" || lowerBody === "cancel") {
+                await resetSession(from);
+                responseMessage = "Cancelled. Reply *1* to browse events.";
+            } else {
+                const tierNum = parseInt(lowerBody);
+                const tiers = session.pendingTickets ?? [];
+                if (!tierNum || !tiers[tierNum - 1]) {
+                    responseMessage = `Please reply with a number between 1 and ${tiers.length}, or *back* to go back.`;
+                } else {
+                    const chosen = tiers[tierNum - 1];
+                    await setSession(from, {
+                        ...session,
+                        step: 'event_selected',
+                        eventId: session.pendingEventId,
+                        eventName: session.pendingEventName,
+                        ticketType: chosen.name,
+                        price: chosen.price,
+                        currency: session.pendingCurrency,
+                    });
+                    responseMessage =
+                        `Great choice! Checkout for *${session.pendingEventName}*.\n\n` +
+                        `🎟️ Ticket: ${chosen.name}\n` +
+                        `💰 Price: ${session.pendingCurrency} ${chosen.price}\n\n` +
+                        `Please reply with your *Mobile Money number* (e.g. _076123456_) to receive the payment prompt.`;
+                }
             }
 
         // ── Step: event_selected — awaiting MoMo number ───────────────────────
