@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
                                 date: e.date as string,
                                 location: e.location as string,
                                 currency: (e.currency as string) || 'SLE',
-                                imageUrl: (e.imageUrl as string) || (e.bannerUrl as string) || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
+                                imageUrl: (e.image as string) || (e.imageUrl as string) || (e.bannerUrl as string) || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
                                 tickets: Array.isArray(e.tickets) && (e.tickets as unknown[]).length > 0
                                     ? (e.tickets as Array<{ name: string; price: number }>).map((t) => ({ name: t.name, price: t.price }))
                                     : [{ name: 'General Admission', price: (e.price as number) ?? 0 }],
