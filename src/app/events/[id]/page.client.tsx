@@ -53,6 +53,7 @@ export default function EventDetailsPage() {
                     ...prev,
                     ticketsSold: data.ticketsSold ?? prev.ticketsSold,
                     totalCapacity: data.totalCapacity ?? prev.totalCapacity,
+                    tierSoldCounts: data.tierSoldCounts !== undefined ? data.tierSoldCounts : prev.tierSoldCounts,
                 } : prev);
             }
         });

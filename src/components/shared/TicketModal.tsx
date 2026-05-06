@@ -78,11 +78,19 @@ export function TicketModal({ isOpen, onClose, event, onProceedToCheckout }: Tic
                     event.tickets.map((ticket) => {
                         const price = ticket.price !== undefined ? ticket.price : basePrice;
                         const qty = getQuantity(ticket.name);
+                        const tierSold = event.tierSoldCounts?.[ticket.name] ?? 0;
+                        const remaining = ticket.quantity > 0 ? Math.max(0, ticket.quantity - tierSold) : null;
+                        const isTierSoldOut = remaining !== null && remaining === 0;
+                        const isLow = remaining !== null && remaining > 0 && remaining <= 10;
 
                         return (
                             <div
                                 key={ticket.name}
-                                className="flex justify-between items-center p-4 border border-gray-200 rounded-xl bg-white hover:border-orange-200 hover:shadow-sm transition-all"
+                                className={`flex justify-between items-center p-4 border rounded-xl transition-all ${
+                                    isTierSoldOut
+                                        ? "border-gray-100 bg-gray-50 opacity-60"
+                                        : "border-gray-200 bg-white hover:border-orange-200 hover:shadow-sm"
+                                }`}
                             >
                                 <div>
                                     <h4 className="font-bold text-gray-900 flex items-center gap-2">
@@ -92,13 +100,25 @@ export function TicketModal({ isOpen, onClose, event, onProceedToCheckout }: Tic
                                                 Invite Only
                                             </span>
                                         )}
+                                        {isTierSoldOut && (
+                                            <span className="bg-red-100 text-red-600 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full tracking-wider">
+                                                Sold Out
+                                            </span>
+                                        )}
                                     </h4>
                                     {ticket.description && (
                                         <p className="text-xs text-gray-500 mt-0.5">{ticket.description}</p>
                                     )}
-                                    <p className="text-sm font-bold text-orange-600 mt-1">
-                                        {price === 0 ? "Free" : `NLe ${price.toLocaleString()}`}
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <p className="text-sm font-bold text-orange-600">
+                                            {price === 0 ? "Free" : `NLe ${price.toLocaleString()}`}
+                                        </p>
+                                        {remaining !== null && !isTierSoldOut && (
+                                            <span className={`text-xs font-semibold ${isLow ? "text-orange-500" : "text-gray-400"}`}>
+                                                · {remaining} left
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <button
@@ -111,8 +131,8 @@ export function TicketModal({ isOpen, onClose, event, onProceedToCheckout }: Tic
                                     <span className="font-bold w-6 text-center text-gray-900">{qty}</span>
                                     <button
                                         onClick={() => handleUpdate(ticket.name, price, 1)}
-                                        // Optional: Check against ticket.quantity available
-                                        className="w-11 h-11 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 flex items-center justify-center transition-colors border border-transparent"
+                                        disabled={isTierSoldOut || (remaining !== null && qty >= remaining)}
+                                        className="w-11 h-11 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors border border-transparent"
                                     >
                                         <Plus size={14} />
                                     </button>
@@ -120,33 +140,53 @@ export function TicketModal({ isOpen, onClose, event, onProceedToCheckout }: Tic
                             </div>
                         );
                     })
-                ) : (
+                ) : (() => {
                     // Fallback if no specific tickets are defined, but event has a price (MVP fallback)
-                    <div className="flex justify-between items-center p-4 border border-gray-200 rounded-xl bg-white hover:border-orange-200 hover:shadow-sm transition-all">
-                        <div>
-                            <h4 className="font-bold text-gray-900">General Admission</h4>
-                            <p className="text-sm font-bold text-orange-600 mt-1">
-                                {basePrice === 0 ? "Free" : `NLe ${basePrice.toLocaleString()}`}
-                            </p>
+                    const gaQty = getQuantity("General Admission");
+                    const gaSold = event.tierSoldCounts?.["General Admission"] ?? 0;
+                    const gaRemaining = event.totalCapacity > 0 ? Math.max(0, event.totalCapacity - gaSold) : null;
+                    const gaIsLow = gaRemaining !== null && gaRemaining > 0 && gaRemaining <= 10;
+                    const gaIsSoldOut = gaRemaining !== null && gaRemaining === 0;
+                    return (
+                        <div className={`flex justify-between items-center p-4 border rounded-xl transition-all ${gaIsSoldOut ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-200 bg-white hover:border-orange-200 hover:shadow-sm"}`}>
+                            <div>
+                                <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                                    General Admission
+                                    {gaIsSoldOut && (
+                                        <span className="bg-red-100 text-red-600 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full tracking-wider">Sold Out</span>
+                                    )}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-sm font-bold text-orange-600">
+                                        {basePrice === 0 ? "Free" : `NLe ${basePrice.toLocaleString()}`}
+                                    </p>
+                                    {gaRemaining !== null && !gaIsSoldOut && (
+                                        <span className={`text-xs font-semibold ${gaIsLow ? "text-orange-500" : "text-gray-400"}`}>
+                                            · {gaRemaining} left
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => handleUpdate("General Admission", basePrice, -1)}
+                                    disabled={gaQty === 0}
+                                    className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors border border-transparent"
+                                >
+                                    <Minus size={14} />
+                                </button>
+                                <span className="font-bold w-6 text-center text-gray-900">{gaQty}</span>
+                                <button
+                                    onClick={() => handleUpdate("General Admission", basePrice, 1)}
+                                    disabled={gaIsSoldOut || (gaRemaining !== null && gaQty >= gaRemaining)}
+                                    className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors border border-transparent"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => handleUpdate("General Admission", basePrice, -1)}
-                                disabled={getQuantity("General Admission") === 0}
-                                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors border border-transparent"
-                            >
-                                <Minus size={14} />
-                            </button>
-                            <span className="font-bold w-6 text-center text-gray-900">{getQuantity("General Admission")}</span>
-                            <button
-                                onClick={() => handleUpdate("General Admission", basePrice, 1)}
-                                className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 flex items-center justify-center transition-colors border border-transparent"
-                            >
-                                <Plus size={14} />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                    );
+                })()}
             </div>
         </Modal>
     );

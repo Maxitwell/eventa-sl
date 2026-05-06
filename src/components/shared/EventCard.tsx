@@ -38,6 +38,13 @@ export function EventCard({ event, onClickTickets, onClickWaitlist }: EventCardP
     };
 
     const primaryCategory = event.categories?.[0] || "Event";
+
+    const formatTime12h = (time: string) => {
+        const [hourStr, minuteStr = "00"] = time.split(":");
+        const hour = parseInt(hourStr, 10);
+        if (isNaN(hour)) return time;
+        return `${hour % 12 || 12}:${minuteStr} ${hour >= 12 ? "PM" : "AM"}`;
+    };
     const isSoldOut = event.ticketsSold >= event.totalCapacity && event.totalCapacity > 0;
     const isFree = event.price === 0;
 
@@ -128,7 +135,7 @@ export function EventCard({ event, onClickTickets, onClickWaitlist }: EventCardP
                 <p className="text-gray-400 text-xs flex items-center gap-1 mb-auto">
                     <MapPin size={11} className="shrink-0" />
                     <span>{event.location}</span>
-                    {event.time && <span className="text-gray-300">· {event.time}</span>}
+                    {event.time && <span className="text-gray-300">· {formatTime12h(event.time)}</span>}
                 </p>
 
                 {/* Footer */}

@@ -69,6 +69,7 @@ export interface EventEntity {
     facebook: string;
   };
   doorPin?: string;
+  tierSoldCounts?: Record<string, number>;
 }
 
 export interface TicketEntity {

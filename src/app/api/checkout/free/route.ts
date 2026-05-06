@@ -3,6 +3,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { sendTicketEmail } from '@/lib/delivery';
 import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
+import crypto from 'crypto';
 
 type FreeTicketItem = {
     quantity: number;
@@ -33,7 +34,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No tickets provided' }, { status: 400 });
         }
 
-        // All items must belong to the same event
         const eventIds = [...new Set(tickets.map((t) => t.eventId))];
         if (eventIds.length !== 1) {
             return NextResponse.json({ error: 'All tickets must be for the same event' }, { status: 400 });
@@ -48,7 +48,6 @@ export async function POST(request: Request) {
 
         const eventData = eventSnap.data() as Record<string, unknown>;
 
-        // Confirm the event is actually free
         const eventBasePrice = Number(eventData.price) || 0;
         const allFree = tickets.every((t) => {
             const tiers = eventData.tickets as Array<{ name: string; price: number }> | undefined;
@@ -62,14 +61,18 @@ export async function POST(request: Request) {
 
         const totalRequested = tickets.reduce((sum, t) => sum + t.quantity, 0);
         const now = new Date().toISOString();
-        const orderId = `free-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-        // Atomically check capacity and increment ticketsSold
+        // Fix 8: use crypto.randomUUID — unpredictable, no collision risk
+        const orderId = `free-${crypto.randomUUID()}`;
+
+        // Fix 10: guard against undefined email producing userId "guest_undefined"
+        const resolvedUserId = userId || (guestInfo?.email ? `guest_${guestInfo.email}` : `guest_anon_${crypto.randomUUID()}`);
+
         await adminDb.runTransaction(async (t) => {
             const eventDoc = await t.get(eventRef);
             if (!eventDoc.exists) throw new Error('Event not found');
 
-            const ed = eventDoc.data() as { totalCapacity?: number; ticketsSold?: number };
+            const ed = eventDoc.data() as { totalCapacity?: number; ticketsSold?: number; tierSoldCounts?: Record<string, number> };
             const capacity = ed?.totalCapacity ?? 0;
             const sold = ed?.ticketsSold ?? 0;
 
@@ -77,7 +80,12 @@ export async function POST(request: Request) {
                 throw new Error('Event is at capacity');
             }
 
-            t.update(eventRef, { ticketsSold: sold + totalRequested });
+            const newTierSoldCounts: Record<string, number> = { ...(ed.tierSoldCounts ?? {}) };
+            for (const ticket of tickets) {
+                newTierSoldCounts[ticket.ticketName] = (newTierSoldCounts[ticket.ticketName] ?? 0) + ticket.quantity;
+            }
+
+            t.update(eventRef, { ticketsSold: sold + totalRequested, tierSoldCounts: newTierSoldCounts });
         });
 
         const ticketsRef = adminDb.collection('tickets');
@@ -91,9 +99,11 @@ export async function POST(request: Request) {
                 const newTicketRef = ticketsRef.doc();
                 ticketIds.push(newTicketRef.id);
 
+                // Fix 12: ticket JWTs now carry a 5-year expiry
                 const signed = jwt.sign(
                     { ticketId: newTicketRef.id, eventId, orderId },
-                    jwtSecret
+                    jwtSecret,
+                    { expiresIn: '5y' }
                 );
                 const qrCode = await QRCode.toDataURL(signed, {
                     width: 300,
@@ -112,7 +122,7 @@ export async function POST(request: Request) {
                     time: line.eventTime || (eventData.time as string) || '',
                     location: line.eventLocation || (eventData.location as string) || '',
                     pricePaid: 0,
-                    userId: userId || `guest_${guestInfo?.email}`,
+                    userId: resolvedUserId,
                     guestName: guestInfo?.name || null,
                     guestEmail: guestInfo?.email || null,
                     guestPhone: guestInfo?.phone || null,
@@ -122,14 +132,13 @@ export async function POST(request: Request) {
             }
         }
 
-        // Create an order record so it shows up in admin
         batch.set(ordersRef.doc(orderId), {
             depositId: orderId,
             status: 'paid',
             amount: 0,
             currency: 'SLE',
             eventId,
-            userId: userId || null,
+            userId: resolvedUserId,
             guestEmail: guestInfo?.email || null,
             guestName: guestInfo?.name || null,
             guestPhone: guestInfo?.phone || null,
@@ -142,7 +151,6 @@ export async function POST(request: Request) {
 
         await batch.commit();
 
-        // Send confirmation emails
         const emailTarget = guestInfo?.email || null;
         const emailName = guestInfo?.name || 'Guest';
         const eventName = tickets[0].eventName;

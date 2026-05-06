@@ -39,25 +39,27 @@ export async function POST(request: Request) {
         const batch = adminDb.batch();
         let eventIdToIncrement = null;
         let ticketsToIncrement = 0;
+        const tierIncrements: Record<string, number> = {};
 
         querySnapshot.docs.forEach((docSnap) => {
             const ticketRef = ticketsRef.doc(docSnap.id);
             const ticketData = docSnap.data();
-            
+
             if (status === "COMPLETED") {
-                batch.update(ticketRef, { 
-                    status: "valid", 
-                    paymentConfirmedAt: new Date().toISOString() 
+                batch.update(ticketRef, {
+                    status: "valid",
+                    paymentConfirmedAt: new Date().toISOString()
                 });
-                
-                // Track how many tickets we need to add to the event's ticketsSold counter
+
                 if (ticketData.eventId) {
                     eventIdToIncrement = ticketData.eventId;
                     ticketsToIncrement++;
+                    const tierName = ticketData.ticketType ?? 'General Admission';
+                    tierIncrements[tierName] = (tierIncrements[tierName] ?? 0) + 1;
                 }
             } else if (status === "FAILED") {
-                batch.update(ticketRef, { 
-                    status: "failed_payment" 
+                batch.update(ticketRef, {
+                    status: "failed_payment"
                 });
             }
         });
@@ -140,20 +142,28 @@ export async function POST(request: Request) {
             await Promise.allSettled(failNotifyPromises);
         }
         
-        // If they checked out successfully, we must now safely increment the Event's capacity!
+        // Safely increment ticketsSold and per-tier soldCounts on the event
         if (status === "COMPLETED" && eventIdToIncrement && ticketsToIncrement > 0) {
             const eventRef = adminDb.collection('events').doc(eventIdToIncrement);
             try {
                 await adminDb.runTransaction(async (t) => {
                     const eventDoc = await t.get(eventRef);
                     if (eventDoc.exists) {
-                        const currentSold = eventDoc.data()?.ticketsSold || 0;
-                        t.update(eventRef, { ticketsSold: currentSold + ticketsToIncrement });
+                        const data = eventDoc.data() as { ticketsSold?: number; tierSoldCounts?: Record<string, number> };
+                        const currentSold = data.ticketsSold || 0;
+                        const newTierSoldCounts: Record<string, number> = { ...(data.tierSoldCounts ?? {}) };
+                        for (const [tierName, count] of Object.entries(tierIncrements)) {
+                            newTierSoldCounts[tierName] = (newTierSoldCounts[tierName] ?? 0) + count;
+                        }
+                        t.update(eventRef, {
+                            ticketsSold: currentSold + ticketsToIncrement,
+                            tierSoldCounts: newTierSoldCounts,
+                        });
                     }
                 });
-                console.log(`Successfully incremented event ${eventIdToIncrement} ticketsSold by ${ticketsToIncrement}`);
+                console.log(`Incremented event ${eventIdToIncrement} ticketsSold by ${ticketsToIncrement}`);
             } catch (err) {
-                console.error("Failed to increment ticketsSold securely in webhook:", err);
+                console.error("Failed to increment ticketsSold in webhook:", err);
             }
         }
 

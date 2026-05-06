@@ -18,6 +18,8 @@ const SID_TICKET_TIER = 'HXe49c578fa0af7ceeb96957eea295e5a8';
 type CachedTicketTier = {
     name: string;
     price: number;
+    quantity: number;
+    soldCount: number;
 };
 
 type CachedEvent = {
@@ -140,8 +142,13 @@ export async function POST(req: NextRequest) {
                                 currency: (e.currency as string) || 'SLE',
                                 imageUrl: (e.image as string) || (e.imageUrl as string) || (e.bannerUrl as string) || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
                                 tickets: Array.isArray(e.tickets) && (e.tickets as unknown[]).length > 0
-                                    ? (e.tickets as Array<{ name: string; price: number }>).map((t) => ({ name: t.name, price: t.price }))
-                                    : [{ name: 'General Admission', price: (e.price as number) ?? 0 }],
+                                    ? (e.tickets as Array<{ name: string; price: number; quantity?: number }>).map((t) => ({
+                                        name: t.name,
+                                        price: t.price,
+                                        quantity: t.quantity ?? 0,
+                                        soldCount: ((e.tierSoldCounts as Record<string, number> | undefined)?.[t.name] ?? 0),
+                                    }))
+                                    : [{ name: 'General Admission', price: (e.price as number) ?? 0, quantity: (e.totalCapacity as number) ?? 0, soldCount: (e.ticketsSold as number) ?? 0 }],
                             }));
                         page = 0;
                     } else {
@@ -265,16 +272,19 @@ export async function POST(req: NextRequest) {
                     templateSid = SID_WELCOME_MENU;
                     templateVars = { '1': profileName || 'there' };
                 } else if (ev.tickets.length === 1) {
+                    const t0 = ev.tickets[0];
+                    const rem0 = t0.quantity > 0 ? Math.max(0, t0.quantity - t0.soldCount) : null;
                     await setSession(from, {
                         ...session,
                         step: 'event_selected',
                         eventId: ev.id,
                         eventName: ev.title,
-                        ticketType: ev.tickets[0].name,
-                        price: ev.tickets[0].price,
+                        ticketType: t0.name,
+                        price: t0.price,
                         currency: ev.currency,
                     });
-                    responseMessage = `${hi}\n\nYou're booking for *${ev.title}*.\n\n🎟️ Ticket: *${ev.tickets[0].name}*\n💰 Price: *${ev.currency} ${ev.tickets[0].price}*\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                    const remLine0 = rem0 !== null ? `\n🎫 Remaining: *${rem0}*` : '';
+                    responseMessage = `${hi}\n\nYou're booking for *${ev.title}*.\n\n🎟️ Ticket: *${t0.name}*\n💰 Price: *${ev.currency} ${t0.price}*${remLine0}\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
                 } else {
                     await setSession(from, {
                         ...session,
@@ -284,15 +294,20 @@ export async function POST(req: NextRequest) {
                         pendingTickets: ev.tickets,
                         pendingCurrency: ev.currency,
                     });
+                    const tierDesc = (t: CachedTicketTier | undefined) => {
+                        if (!t) return 'N/A';
+                        const rem = t.quantity > 0 ? Math.max(0, t.quantity - t.soldCount) : null;
+                        return rem !== null ? `${ev.currency} ${t.price} · ${rem} left` : `${ev.currency} ${t.price}`;
+                    };
                     templateSid = SID_TICKET_TIER;
                     templateVars = {
                         '1': ev.title.slice(0, 24),
                         '2': ev.tickets[0]?.name.slice(0, 24) || 'Sold Out',
-                        '3': ev.tickets[0] ? `${ev.currency} ${ev.tickets[0].price}` : 'N/A',
+                        '3': tierDesc(ev.tickets[0]),
                         '4': ev.tickets[1]?.name.slice(0, 24) || 'Sold Out',
-                        '5': ev.tickets[1] ? `${ev.currency} ${ev.tickets[1].price}` : 'N/A',
+                        '5': tierDesc(ev.tickets[1]),
                         '6': ev.tickets[2]?.name.slice(0, 24) || 'Sold Out',
-                        '7': ev.tickets[2] ? `${ev.currency} ${ev.tickets[2].price}` : 'N/A',
+                        '7': tierDesc(ev.tickets[2]),
                     };
                 }
             } else {
