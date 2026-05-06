@@ -20,6 +20,7 @@ type CachedTicketTier = {
     price: number;
     quantity: number;
     soldCount: number;
+    description?: string;
 };
 
 type CachedEvent = {
@@ -142,13 +143,14 @@ export async function POST(req: NextRequest) {
                                 currency: (e.currency as string) || 'SLE',
                                 imageUrl: (e.image as string) || (e.imageUrl as string) || (e.bannerUrl as string) || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
                                 tickets: Array.isArray(e.tickets) && (e.tickets as unknown[]).length > 0
-                                    ? (e.tickets as Array<{ name: string; price: number; quantity?: number }>).map((t) => ({
+                                    ? (e.tickets as Array<{ name: string; price: number; quantity?: number; description?: string; perks?: string }>).map((t) => ({
                                         name: t.name,
                                         price: t.price,
                                         quantity: t.quantity ?? 0,
                                         soldCount: ((e.tierSoldCounts as Record<string, number> | undefined)?.[t.name] ?? 0),
+                                        description: t.description || t.perks || '',
                                     }))
-                                    : [{ name: 'General Admission', price: (e.price as number) ?? 0, quantity: (e.totalCapacity as number) ?? 0, soldCount: (e.ticketsSold as number) ?? 0 }],
+                                    : [{ name: 'General Admission', price: (e.price as number) ?? 0, quantity: (e.totalCapacity as number) ?? 0, soldCount: (e.ticketsSold as number) ?? 0, description: '' }],
                             }));
                         page = 0;
                     } else {
@@ -200,7 +202,7 @@ export async function POST(req: NextRequest) {
                     templateVars = {
                         '1': ev.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
                         '2': ev.title.slice(0, 24),
-                        '3': `${ev.date} • ${ev.location}`.slice(0, 72)
+                        '3': `📅 ${ev.date}\n📍 ${ev.location}`.slice(0, 72)
                     };
                 }
 
@@ -296,6 +298,8 @@ export async function POST(req: NextRequest) {
                     });
                     const tierDesc = (t: CachedTicketTier | undefined) => {
                         if (!t) return 'N/A';
+                        // Show description/perks if available, otherwise fall back to price + remaining
+                        if (t.description) return t.description.slice(0, 72);
                         const rem = t.quantity > 0 ? Math.max(0, t.quantity - t.soldCount) : null;
                         return rem !== null ? `${ev.currency} ${t.price} · ${rem} left` : `${ev.currency} ${t.price}`;
                     };
