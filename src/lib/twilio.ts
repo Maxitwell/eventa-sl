@@ -17,6 +17,16 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
     await client.messages.create({ from: fromNumber, to, body });
 }
 
+export async function sendWhatsAppContentMessage(to: string, contentSid: string, contentVariables: Record<string, string>): Promise<void> {
+    const client = getClient();
+    await client.messages.create({
+        from: fromNumber,
+        to,
+        contentSid,
+        contentVariables: JSON.stringify(contentVariables)
+    });
+}
+
 /**
  * Validate that an incoming request genuinely came from Twilio.
  * Returns true if valid, false otherwise.
