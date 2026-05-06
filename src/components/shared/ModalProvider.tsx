@@ -5,6 +5,7 @@ import { TicketModal } from "./TicketModal";
 import { CheckoutModal } from "./CheckoutModal";
 import { HypeModal } from "./HypeModal";
 import { EventEntity } from "@/lib/db";
+import { useCart } from "@/store/CartContext";
 
 type ModalState = "none" | "ticket" | "checkout" | "hype";
 
@@ -20,6 +21,7 @@ const ModalContext = createContext<ModalContextType | undefined>(undefined);
 export function ModalProvider({ children }: { children: ReactNode }) {
     const [activeModal, setActiveModal] = useState<ModalState>("none");
     const [selectedEvent, setSelectedEvent] = useState<EventEntity | null>(null);
+    const { items, clearCart } = useCart();
 
     useEffect(() => {
         // Listen for custom events triggered by components that don't have direct access
@@ -32,6 +34,10 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const openTicketModal = (event: EventEntity) => {
+        // Clear cart when switching to a different event to prevent stale pricing
+        if (items.length > 0 && items[0].eventId !== event.id) {
+            clearCart();
+        }
         setSelectedEvent(event);
         setActiveModal("ticket");
     };
