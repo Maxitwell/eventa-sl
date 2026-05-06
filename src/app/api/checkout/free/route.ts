@@ -156,8 +156,16 @@ export async function POST(request: Request) {
         const eventName = tickets[0].eventName;
 
         if (emailTarget && ticketIds.length > 0) {
+            const firstTicket = tickets[0];
             const sendPromises = ticketIds.map((tid) =>
-                sendTicketEmail(emailTarget, emailName, eventName, qrCodesByTicketId[tid])
+                sendTicketEmail(emailTarget, emailName, eventName, qrCodesByTicketId[tid], {
+                    orderId,
+                    ticketId: tid,
+                    eventDate: firstTicket.eventDate || (eventData.date as string) || '',
+                    eventTime: firstTicket.eventTime || (eventData.time as string) || '',
+                    location: firstTicket.eventLocation || (eventData.location as string) || '',
+                    ticketType: firstTicket.ticketName,
+                })
             );
             await Promise.allSettled(sendPromises);
         }

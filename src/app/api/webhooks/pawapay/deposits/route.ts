@@ -102,7 +102,15 @@ export async function POST(request: Request) {
                         data.guestEmail,
                         data.guestName || "there",
                         data.eventName || "Your Event",
-                        data.qrCode
+                        data.qrCode,
+                        {
+                            orderId: depositId,
+                            ticketId: docSnap.id,
+                            eventDate: data.date || '',
+                            eventTime: data.time || '',
+                            location: data.location || '',
+                            ticketType: data.ticketType || 'General Admission',
+                        }
                     );
                 }
 

@@ -15,6 +15,20 @@ export function TicketCard({ ticket }: { ticket: TicketEntity }) {
         showToast("Ticket link copied to clipboard via Web Share API", "info");
     };
 
+    const handleDownload = () => {
+        try {
+            const link = document.createElement('a');
+            link.href = ticket.qrCode; // already a data URL
+            link.download = `eventa-ticket-${ticket.id.slice(-8).toUpperCase()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Ticket QR downloaded successfully!", "success");
+        } catch {
+            showToast("Could not download ticket. Try right-clicking the QR image.", "error");
+        }
+    };
+
     return (
         <div className={`relative bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden transition-all duration-300 ${!isValid && "opacity-75 grayscale"}`}>
 
@@ -82,10 +96,11 @@ export function TicketCard({ ticket }: { ticket: TicketEntity }) {
 
                 <div className="w-full flex gap-3 mt-auto">
                     <button
+                        onClick={handleDownload}
                         disabled={!isValid}
                         className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                        <Download size={16} /> Save PDF
+                        <Download size={16} /> Save PNG
                     </button>
                     <button
                         onClick={handleShare}
