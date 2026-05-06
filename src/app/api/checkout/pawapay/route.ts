@@ -3,6 +3,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 import { computeCheckoutPricing, type EventTicketTierLike } from '@/lib/checkout-pricing';
+import crypto from 'crypto';
 
 type CheckoutTicketItem = {
     quantity: number;
@@ -15,6 +16,10 @@ type CheckoutTicketItem = {
     price: number;
 };
 
+function norm(s: string): string {
+    return s.trim().toLowerCase();
+}
+
 export async function POST(request: Request) {
     try {
         const adminDb = getAdminDb();
@@ -26,7 +31,6 @@ export async function POST(request: Request) {
         const body = await request.json();
 
         const { phoneNumber, tickets, guestInfo, userId } = body as {
-            amount?: number;
             phoneNumber: string;
             tickets: CheckoutTicketItem[];
             guestInfo?: { email?: string; name?: string; phone?: string };
@@ -83,7 +87,34 @@ export async function POST(request: Request) {
             );
         }
 
-        const depositId = `evt-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+        // Fix 15: best-effort per-tier capacity check before the transaction.
+        // Queries all tickets for this event and validates remaining seats per tier.
+        const eventTiers = eventData.tickets as EventTicketTierLike[] | undefined;
+        if (eventTiers?.length) {
+            const allEventTickets = await adminDb.collection('tickets')
+                .where('eventId', '==', eventId)
+                .get();
+
+            for (const line of pricing.lines) {
+                const tier = eventTiers.find((t) => norm(t.name) === norm(line.ticketName));
+                if (tier && tier.quantity > 0) {
+                    const tierSold = allEventTickets.docs.filter((d) => {
+                        const td = d.data();
+                        return norm(td.ticketType ?? '') === norm(line.ticketName) &&
+                            ['valid', 'used', 'pending_payment'].includes(td.status ?? '');
+                    }).length;
+                    if (tierSold + line.quantity > tier.quantity) {
+                        return NextResponse.json(
+                            { error: `Not enough seats available for "${line.ticketName}"` },
+                            { status: 400 }
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fix 8: use crypto.randomUUID — unpredictable, no collision risk
+        const depositId = `evt-${crypto.randomUUID()}`;
 
         const correspondent = "ORANGE_SLE";
 
@@ -92,44 +123,12 @@ export async function POST(request: Request) {
             formattedPhone = '232' + formattedPhone.replace(/^0+/, '');
         }
 
-        const pawapayPayload = {
-            depositId,
-            amount: serverAmount.toString(),
-            currency: "SLE",
-            country: "SLE",
-            correspondent,
-            payer: {
-                type: "MSISDN",
-                address: {
-                    value: formattedPhone
-                }
-            },
-            statementDescription: "Eventa Ticket Purchase",
-            customerTimestamp: new Date().toISOString(),
-            returnUrl: "https://eventa.africa/tickets"
-        };
-
-        const PAWAPAY_API_URL = `${process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1'}/deposits`;
-        const pawapayResponse = await fetch(PAWAPAY_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.PAWAPAY_API_KEY}`
-            },
-            body: JSON.stringify(pawapayPayload)
-        });
-
-        const pawapayData = await pawapayResponse.json();
-
-        if (!pawapayResponse.ok) {
-            console.error("PawaPay Error API Response:", pawapayData);
-            return NextResponse.json({ error: 'Failed to initiate payment with provider', details: pawapayData }, { status: pawapayResponse.status });
-        }
-
         const ticketsRef = adminDb.collection('tickets');
         const reservationsRef = adminDb.collection('reservations');
         const totalTicketsRequested = pricing.lines.reduce((acc, line) => acc + line.quantity, 0);
 
+        // Fix 2: capacity check and reservation happen BEFORE calling PawaPay.
+        // If this fails, no payment prompt is ever sent to the customer.
         try {
             await adminDb.runTransaction(async (t) => {
                 const eventDoc = await t.get(eventRef);
@@ -144,7 +143,6 @@ export async function POST(request: Request) {
                 let reservedCount = 0;
                 activeResQuery.forEach(doc => {
                     const data = doc.data();
-                    // Filter in-memory — avoids composite index requirement
                     if (data.expiresAt > nowIso) {
                         reservedCount += data.quantity || 0;
                     }
@@ -168,6 +166,67 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: message }, { status: 400 });
         }
 
+        // Fix 2 (continued): now call PawaPay. If it fails, clean up the reservation immediately
+        // so capacity is not blocked for 15 minutes.
+        const pawapayPayload = {
+            depositId,
+            amount: serverAmount.toString(),
+            currency: "SLE",
+            country: "SLE",
+            correspondent,
+            payer: {
+                type: "MSISDN",
+                address: { value: formattedPhone }
+            },
+            statementDescription: "Eventa Ticket Purchase",
+            customerTimestamp: new Date().toISOString(),
+            returnUrl: "https://eventa.africa/tickets"
+        };
+
+        const PAWAPAY_API_URL = `${process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1'}/deposits`;
+        let pawapayData: unknown;
+        let pawapayOk = false;
+        try {
+            const pawapayResponse = await fetch(PAWAPAY_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.PAWAPAY_API_KEY}`
+                },
+                body: JSON.stringify(pawapayPayload)
+            });
+            pawapayData = await pawapayResponse.json();
+            pawapayOk = pawapayResponse.ok;
+            if (!pawapayOk) {
+                console.error("PawaPay Error API Response:", pawapayData);
+            }
+        } catch (err) {
+            console.error("PawaPay fetch error:", err);
+        }
+
+        if (!pawapayOk) {
+            // Fix 11: delete the reservation so capacity is not held by a failed payment
+            await adminDb.collection('reservations').doc(depositId).delete().catch(() => null);
+            return NextResponse.json({ error: 'Failed to initiate payment with provider', details: pawapayData }, { status: 502 });
+        }
+
+        // Fix 10: guard against undefined email producing userId "guest_undefined"
+        const resolvedUserId = userId || (guestInfo?.email ? `guest_${guestInfo.email}` : `guest_anon_${crypto.randomUUID()}`);
+
+        // Resolve email for logged-in users who didn't submit guestInfo
+        let resolvedEmail = guestInfo?.email || null;
+        let resolvedName = guestInfo?.name || null;
+        if (!resolvedEmail && userId) {
+            try {
+                const { getAuth } = await import('firebase-admin/auth');
+                const userRecord = await getAuth().getUser(userId);
+                resolvedEmail = userRecord.email || null;
+                resolvedName = userRecord.displayName || resolvedEmail || null;
+            } catch (err) {
+                console.warn('[PawaPay Checkout] Could not fetch user email from Auth:', err);
+            }
+        }
+
         const orderRef = adminDb.collection('orders').doc(depositId);
         const batch = adminDb.batch();
         const ticketIds: string[] = [];
@@ -184,7 +243,8 @@ export async function POST(request: Request) {
                     depositId: depositId
                 };
 
-                const signedToken = jwt.sign(jwtPayload, jwtSecret);
+                // Fix 12: ticket JWTs now carry a 5-year expiry (tokens should not be indefinitely valid)
+                const signedToken = jwt.sign(jwtPayload, jwtSecret, { expiresIn: '5y' });
                 const qrCodeDataUrl = await QRCode.toDataURL(signedToken, {
                     width: 300,
                     margin: 2,
@@ -202,9 +262,9 @@ export async function POST(request: Request) {
                     time: pricing.eventTime,
                     location: pricing.eventLocation,
                     pricePaid: line.unitPrice,
-                    userId: userId || `guest_${guestInfo?.email}`,
-                    guestName: guestInfo?.name || null,
-                    guestEmail: guestInfo?.email || null,
+                    userId: resolvedUserId,
+                    guestName: guestInfo?.name || resolvedName || null,
+                    guestEmail: guestInfo?.email || resolvedEmail || null,
                     guestPhone: guestInfo?.phone || null,
                     qrCode: qrCodeDataUrl,
                     purchaseDate: now,
@@ -218,9 +278,9 @@ export async function POST(request: Request) {
             amount: serverAmount,
             currency: 'SLE',
             eventId,
-            userId: userId || null,
-            guestEmail: guestInfo?.email || null,
-            guestName: guestInfo?.name || null,
+            userId: resolvedUserId,
+            guestEmail: guestInfo?.email || resolvedEmail || null,
+            guestName: guestInfo?.name || resolvedName || null,
             guestPhone: guestInfo?.phone || null,
             lines: pricing.lines,
             createdAt: now,
@@ -228,7 +288,14 @@ export async function POST(request: Request) {
             ticketIds,
         });
 
-        await batch.commit();
+        try {
+            await batch.commit();
+        } catch (batchErr) {
+            // Fix 11: if the ticket/order write fails, clean up the reservation
+            console.error('Batch write failed after PawaPay deposit — cleaning reservation:', batchErr);
+            await adminDb.collection('reservations').doc(depositId).delete().catch(() => null);
+            return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        }
 
         return NextResponse.json({
             success: true,

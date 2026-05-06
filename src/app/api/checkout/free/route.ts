@@ -124,7 +124,7 @@ export async function POST(request: Request) {
                     pricePaid: 0,
                     userId: resolvedUserId,
                     guestName: guestInfo?.name || null,
-                    guestEmail: guestInfo?.email || null,
+                    guestEmail: guestInfo?.email || emailTarget || null,
                     guestPhone: guestInfo?.phone || null,
                     qrCode,
                     purchaseDate: now,
@@ -139,8 +139,8 @@ export async function POST(request: Request) {
             currency: 'SLE',
             eventId,
             userId: resolvedUserId,
-            guestEmail: guestInfo?.email || null,
-            guestName: guestInfo?.name || null,
+            guestEmail: guestInfo?.email || emailTarget || null,
+            guestName: guestInfo?.name || emailName || null,
             guestPhone: guestInfo?.phone || null,
             lines: tickets.map((t) => ({ ticketName: t.ticketName, quantity: t.quantity, unitPrice: 0 })),
             createdAt: now,
@@ -151,8 +151,19 @@ export async function POST(request: Request) {
 
         await batch.commit();
 
-        const emailTarget = guestInfo?.email || null;
-        const emailName = guestInfo?.name || 'Guest';
+        // Resolve the email to send the ticket to — covers both guest and logged-in users
+        let emailTarget = guestInfo?.email || null;
+        let emailName = guestInfo?.name || 'Guest';
+        if (!emailTarget && userId) {
+            try {
+                const { getAuth } = await import('firebase-admin/auth');
+                const userRecord = await getAuth().getUser(userId);
+                emailTarget = userRecord.email || null;
+                emailName = userRecord.displayName || emailTarget || 'Guest';
+            } catch (err) {
+                console.warn('[Free Checkout] Could not fetch user email from Auth:', err);
+            }
+        }
         const eventName = tickets[0].eventName;
 
         if (emailTarget && ticketIds.length > 0) {
