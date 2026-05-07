@@ -43,6 +43,7 @@ interface Attendee {
     guestName?: string;
     guestPhone?: string;
     userId?: string;
+    channel?: string;
 }
 
 interface PayoutRecord {
@@ -267,7 +268,9 @@ export default function Dashboard() {
         return attendees.filter((a) =>
             (a.guestEmail ?? "").toLowerCase().includes(s) ||
             (a.guestName ?? "").toLowerCase().includes(s) ||
-            (a.ticketType ?? "").toLowerCase().includes(s)
+            (a.ticketType ?? "").toLowerCase().includes(s) ||
+            a.id.toLowerCase().includes(s) ||
+            (a.guestPhone ?? "").toLowerCase().includes(s)
         );
     }, [attendees, attendeeSearch]);
 
@@ -654,7 +657,7 @@ export default function Dashboard() {
                                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search by name, email, or ticket type…"
+                                    placeholder="Search by name, email, ticket type, ID, or phone…"
                                     value={attendeeSearch}
                                     onChange={(e) => setAttendeeSearch(e.target.value)}
                                     className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
@@ -663,9 +666,11 @@ export default function Dashboard() {
                             <button
                                 onClick={() => downloadCSV(
                                     filteredAttendees.map((a) => ({
-                                        name: a.guestName || a.userId || "",
+                                        ticket_id: a.id,
+                                        name: a.guestName || (a.channel === 'whatsapp' ? `WhatsApp ${a.guestPhone || ''}` : a.userId || ""),
                                         email: a.guestEmail || "",
                                         phone: a.guestPhone || "",
+                                        channel: a.channel || "web",
                                         ticket_type: a.ticketType,
                                         status: a.status,
                                         price_paid: a.pricePaid,
@@ -691,15 +696,21 @@ export default function Dashboard() {
                                 {filteredAttendees.map((a) => (
                                     <div key={a.id} className="p-4 space-y-1.5">
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="font-medium text-gray-900 truncate">{a.guestName || "—"}</span>
+                                            <span className="font-medium text-gray-900 truncate">
+                                                {a.guestName || (a.channel === 'whatsapp' ? `WhatsApp` : "—")}
+                                                {a.channel === 'whatsapp' && <span className="ml-1.5 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">WA</span>}
+                                            </span>
                                             <StatusPill status={a.status} />
                                         </div>
-                                        <div className="text-xs text-gray-500 truncate">{a.guestEmail || "—"}</div>
+                                        <div className="text-xs text-gray-500 truncate">{a.guestEmail || a.guestPhone || "—"}</div>
                                         <div className="flex items-center justify-between text-xs">
                                             <span className="text-gray-600">{a.ticketType}</span>
                                             <span className="font-medium text-gray-900">{a.pricePaid === 0 ? "Free" : `Le ${a.pricePaid.toLocaleString()}`}</span>
                                         </div>
-                                        <div className="text-xs text-gray-400">{new Date(a.purchaseDate).toLocaleDateString()}</div>
+                                        <div className="text-xs text-gray-400 flex items-center justify-between">
+                                            <span>{new Date(a.purchaseDate).toLocaleDateString()}</span>
+                                            <span className="font-mono text-gray-400">#{a.id.slice(-8).toUpperCase()}</span>
+                                        </div>
                                     </div>
                                 ))}
                                 {!isLoadingAttendees && filteredAttendees.length === 0 && (
@@ -718,23 +729,28 @@ export default function Dashboard() {
                                             <th className="px-6 py-3 text-right">Paid</th>
                                             <th className="px-6 py-3 text-left">Status</th>
                                             <th className="px-6 py-3 text-left">Date</th>
+                                            <th className="px-6 py-3 text-left">Ticket ID</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {filteredAttendees.map((a) => (
                                             <tr key={a.id} className="hover:bg-gray-50/50">
-                                                <td className="px-6 py-4 font-medium text-gray-900">{a.guestName || "—"}</td>
+                                                <td className="px-6 py-4 font-medium text-gray-900">
+                                                    {a.guestName || (a.channel === 'whatsapp' ? 'WhatsApp' : '—')}
+                                                    {a.channel === 'whatsapp' && <span className="ml-1.5 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded align-middle">WA</span>}
+                                                </td>
                                                 <td className="px-6 py-4 text-gray-500 text-xs">{a.guestEmail || "—"}</td>
                                                 <td className="px-6 py-4 text-gray-500 text-xs">{a.guestPhone || "—"}</td>
                                                 <td className="px-6 py-4 text-gray-700">{a.ticketType}</td>
                                                 <td className="px-6 py-4 text-right font-medium">{a.pricePaid === 0 ? "Free" : `Le ${a.pricePaid.toLocaleString()}`}</td>
                                                 <td className="px-6 py-4"><StatusPill status={a.status} /></td>
                                                 <td className="px-6 py-4 text-xs text-gray-400">{new Date(a.purchaseDate).toLocaleDateString()}</td>
+                                                <td className="px-6 py-4 text-xs font-mono text-gray-500" title={a.id}>{a.id.slice(-8).toUpperCase()}</td>
                                             </tr>
                                         ))}
                                         {!isLoadingAttendees && filteredAttendees.length === 0 && (
                                             <tr>
-                                                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">No attendees found</td>
+                                                <td colSpan={8} className="px-6 py-12 text-center text-gray-400">No attendees found</td>
                                             </tr>
                                         )}
                                     </tbody>

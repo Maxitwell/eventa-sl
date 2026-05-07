@@ -477,6 +477,7 @@ export async function POST(req: NextRequest) {
 
                     await ticketRef.set({
                         eventId, eventName: session.eventName, userId: waUserId, ticketType: session.ticketType ?? 'General Admission', status: 'payment_pending', pawapayDepositId: depositId, orderId: depositId, qrCode: qrCodeDataUrl, pricePaid: currentPrice, purchaseDate: now, guestPhone: phone, channel: 'whatsapp', waFrom: from,
+                        date: currentDate, time: currentTime, location: currentLocation,
                     });
 
                     await db.collection('orders').doc(depositId).set({
@@ -546,7 +547,9 @@ export async function POST(req: NextRequest) {
                         const ticketData = ticketSnap.docs[0]?.data();
                         await resetSession(from);
 
-                        responseMessage = `${hi}\n\n✅ *Payment Confirmed!*\n\nYour ticket for *${session.eventName}* is ready.\n\n🎟️ Type: *${ticketData?.ticketType ?? session.ticketType ?? 'General Admission'}*\n🆔 Ticket ID: *${ticketSnap.docs[0]?.id.slice(-8).toUpperCase() ?? 'N/A'}*\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`;
+                        const paidTicketId = ticketSnap.docs[0]?.id ?? '';
+                        const paidAppUrl = (process.env.APP_URL ?? 'https://eventa.africa').replace(/\/$/, '');
+                        responseMessage = `${hi}\n\n✅ *Payment Confirmed!*\n\nYour ticket for *${session.eventName}* is ready.\n\n🎟️ Type: *${ticketData?.ticketType ?? session.ticketType ?? 'General Admission'}*\n🆔 Ticket ID: *${paidTicketId.slice(-8).toUpperCase() || 'N/A'}*\n\n📲 View & save your QR code:\n${paidAppUrl}/ticket/${paidTicketId}\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`;
                     } else if (orderStatus === 'failed') {
                         await resetSession(from);
                         responseMessage = `${hi}\n\n❌ *Payment failed or expired.*\n\nPlease try again.\n\nReply *menu* to start over.${sig}`;

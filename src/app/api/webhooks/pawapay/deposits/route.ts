@@ -117,13 +117,15 @@ export async function POST(request: Request) {
                 // WhatsApp confirmation (WhatsApp checkout)
                 if (data.channel === "whatsapp" && data.waFrom) {
                     const ticketId = docSnap.id.slice(-8).toUpperCase();
+                    const appUrl = (process.env.APP_URL ?? 'https://eventa.africa').replace(/\/$/, '');
+                    const ticketUrl = `${appUrl}/ticket/${docSnap.id}`;
                     const msg =
                         `✅ *Payment Confirmed!*\n\n` +
                         `Your ticket for *${data.eventName ?? "the event"}* is ready.\n\n` +
                         `🎟️ Type: ${data.ticketType ?? "General Admission"}\n` +
-                        `🆔 ID: ${ticketId}\n` +
-                        `📷 QR: ${data.qrCode ?? "N/A"}\n\n` +
-                        `Show this QR code at the entrance. See you there! 🎉\n\n` +
+                        `🆔 ID: ${ticketId}\n\n` +
+                        `📲 View & save your QR code:\n${ticketUrl}\n\n` +
+                        `Show your QR code at the entrance. See you there! 🎉\n\n` +
                         `Reply *menu* to start over.`;
                     await sendWhatsAppMessage(data.waFrom, msg).catch((err) =>
                         console.error("[PawaPay Webhook] WhatsApp notify failed:", err)
