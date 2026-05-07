@@ -329,10 +329,10 @@ export async function POST(req: NextRequest) {
                     });
                     const tierDesc = (t: CachedTicketTier | undefined) => {
                         if (!t) return 'N/A';
-                        // Show description/perks if available, otherwise fall back to price + remaining
-                        if (t.description) return t.description.slice(0, 72);
+                        const priceStr = t.price === 0 ? 'Free' : `${ev.currency} ${t.price}`;
+                        if (t.description) return `${priceStr} · ${t.description}`.slice(0, 72);
                         const rem = t.quantity > 0 ? Math.max(0, t.quantity - t.soldCount) : null;
-                        return rem !== null ? `${ev.currency} ${t.price} · ${rem} left` : `${ev.currency} ${t.price}`;
+                        return rem !== null ? `${priceStr} · ${rem} left` : priceStr;
                     };
                     templateSid = SID_TICKET_TIER;
                     templateVars = {
