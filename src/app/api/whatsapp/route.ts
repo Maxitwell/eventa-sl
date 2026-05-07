@@ -158,7 +158,6 @@ export async function POST(req: NextRequest) {
                     }
 
                     const pageEvents = allEvents.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-                    const hasMore = allEvents.length > (page + 1) * PAGE_SIZE;
 
                     await setSession(from, { ...session, step: 'browsing', eventsList: allEvents, eventsPage: page });
 
@@ -276,17 +275,22 @@ export async function POST(req: NextRequest) {
                 } else if (ev.tickets.length === 1) {
                     const t0 = ev.tickets[0];
                     const rem0 = t0.quantity > 0 ? Math.max(0, t0.quantity - t0.soldCount) : null;
-                    await setSession(from, {
-                        ...session,
-                        step: 'event_selected',
-                        eventId: ev.id,
-                        eventName: ev.title,
-                        ticketType: t0.name,
-                        price: t0.price,
-                        currency: ev.currency,
-                    });
-                    const remLine0 = rem0 !== null ? `\n🎫 Remaining: *${rem0}*` : '';
-                    responseMessage = `${hi}\n\nYou're booking for *${ev.title}*.\n\n🎟️ Ticket: *${t0.name}*\n💰 Price: *${ev.currency} ${t0.price}*${remLine0}\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                    if (t0.price === 0) {
+                        const result = await issueFreeTicketWA({ from, eventId: ev.id, eventName: ev.title, ticketType: t0.name, hi, sig });
+                        responseMessage = result.responseMessage;
+                    } else {
+                        await setSession(from, {
+                            ...session,
+                            step: 'event_selected',
+                            eventId: ev.id,
+                            eventName: ev.title,
+                            ticketType: t0.name,
+                            price: t0.price,
+                            currency: ev.currency,
+                        });
+                        const remLine0 = rem0 !== null ? `\n🎫 Remaining: *${rem0}*` : '';
+                        responseMessage = `${hi}\n\nYou're booking for *${ev.title}*.\n\n🎟️ Ticket: *${t0.name}*\n💰 Price: *${ev.currency} ${t0.price}*${remLine0}\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                    }
                 } else {
                     await setSession(from, {
                         ...session,
@@ -330,16 +334,21 @@ export async function POST(req: NextRequest) {
                 
                 if (tierIndex >= 0 && tierIndex < tiers.length) {
                     const chosen = tiers[tierIndex];
-                    await setSession(from, {
-                        ...session,
-                        step: 'event_selected',
-                        eventId: session.pendingEventId,
-                        eventName: session.pendingEventName,
-                        ticketType: chosen.name,
-                        price: chosen.price,
-                        currency: session.pendingCurrency,
-                    });
-                    responseMessage = `${hi}\n\nYou're booking for *${session.pendingEventName}*.\n\n🎟️ Ticket: *${chosen.name}*\n💰 Price: *${session.pendingCurrency} ${chosen.price}*\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                    if (chosen.price === 0) {
+                        const result = await issueFreeTicketWA({ from, eventId: session.pendingEventId!, eventName: session.pendingEventName!, ticketType: chosen.name, hi, sig });
+                        responseMessage = result.responseMessage;
+                    } else {
+                        await setSession(from, {
+                            ...session,
+                            step: 'event_selected',
+                            eventId: session.pendingEventId,
+                            eventName: session.pendingEventName,
+                            ticketType: chosen.name,
+                            price: chosen.price,
+                            currency: session.pendingCurrency,
+                        });
+                        responseMessage = `${hi}\n\nYou're booking for *${session.pendingEventName}*.\n\n🎟️ Ticket: *${chosen.name}*\n💰 Price: *${session.pendingCurrency} ${chosen.price}*\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                    }
                 } else {
                     responseMessage = "That ticket is currently unavailable. Please select another.";
                 }
@@ -353,6 +362,10 @@ export async function POST(req: NextRequest) {
                 await resetSession(from);
                 templateSid = SID_WELCOME_MENU;
                 templateVars = { '1': profileName || 'there' };
+            } else if ((session.price ?? 0) === 0) {
+                // Defensive: free ticket reached the paid step — issue it now
+                const result = await issueFreeTicketWA({ from, eventId: session.eventId!, eventName: session.eventName!, ticketType: session.ticketType!, hi, sig });
+                responseMessage = result.responseMessage;
             } else {
                 const digitsOnly = body.replace(/\D/g, '');
                 if (digitsOnly.length >= 6) {
@@ -530,6 +543,80 @@ export async function POST(req: NextRequest) {
         console.error("Twilio Webhook Error:", error);
         return new NextResponse("Internal Server Error", { status: 500 });
     }
+}
+
+// ── Free ticket issuance (WhatsApp) ──────────────────────────────────────────
+
+async function issueFreeTicketWA(params: {
+    from: string;
+    eventId: string;
+    eventName: string;
+    ticketType: string;
+    hi: string;
+    sig: string;
+}): Promise<{ responseMessage: string }> {
+    const { from, eventId, eventName, ticketType, hi, sig } = params;
+    const db = getAdminDb();
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || jwtSecret.length < 32) {
+        return { responseMessage: "Service configuration error. Please try again later." };
+    }
+
+    const waUserId = `wa_${from.replace(/\D/g, '')}`;
+    const orderId = `wa-free-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const eventRef = db.collection('events').doc(eventId);
+    const ticketRef = db.collection('tickets').doc();
+
+    // Generate QR before any DB writes so a failure here has no side-effects
+    const jwtPayload = { ticketId: ticketRef.id, eventId, orderId };
+    const signedToken = jwt.sign(jwtPayload, jwtSecret, { expiresIn: '5y' });
+    let qrCodeDataUrl: string;
+    try {
+        qrCodeDataUrl = await QRCode.toDataURL(signedToken, {
+            width: 300, margin: 2, color: { dark: '#111827', light: '#ffffff' },
+        });
+    } catch {
+        return { responseMessage: "Couldn't generate your ticket. Please try again." };
+    }
+
+    // Capacity check + write ticket + update event count — all in one transaction
+    try {
+        await db.runTransaction(async (tx) => {
+            const eventDoc = await tx.get(eventRef);
+            if (!eventDoc.exists) throw new Error("Event not found");
+            const ed = eventDoc.data() as { totalCapacity?: number; capacity?: number; ticketsSold?: number; tierSoldCounts?: Record<string, number> };
+            const capacity = ed?.totalCapacity ?? ed?.capacity ?? 0;
+            const sold = ed?.ticketsSold ?? 0;
+            if (capacity > 0 && sold + 1 > capacity) {
+                throw new Error("Sorry, this event is now full.");
+            }
+            const newTierSoldCounts: Record<string, number> = { ...(ed.tierSoldCounts ?? {}) };
+            newTierSoldCounts[ticketType] = (newTierSoldCounts[ticketType] ?? 0) + 1;
+            tx.update(eventRef, { ticketsSold: sold + 1, tierSoldCounts: newTierSoldCounts });
+            tx.set(ticketRef, {
+                orderId, eventId, eventName, userId: waUserId, ticketType, status: 'valid',
+                pricePaid: 0, purchaseDate: now, channel: 'whatsapp', waFrom: from, qrCode: qrCodeDataUrl,
+            });
+        });
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Capacity check failed.";
+        return { responseMessage: `${msg} Reply *menu* to start over.` };
+    }
+
+    // Order document is non-critical — write outside transaction
+    await db.collection('orders').doc(orderId).set({
+        depositId: orderId, eventId, eventName, userId: waUserId, amount: 0, currency: 'SLE',
+        status: 'paid', channel: 'whatsapp', waFrom: from, isFree: true,
+        ticketIds: [ticketRef.id], lines: [{ ticketName: ticketType, quantity: 1, unitPrice: 0 }],
+        createdAt: now, updatedAt: now,
+    }).catch((err) => console.error('[WhatsApp] Failed to write free order:', err));
+
+    await setSession(from, { step: 'browsing' });
+
+    return {
+        responseMessage: `${hi}\n\n✅ *Your free ticket is confirmed!*\n\n🎟️ *${eventName}*\nType: *${ticketType}*\n🆔 Ticket ID: *${ticketRef.id.slice(-8).toUpperCase()}*\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`,
+    };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
