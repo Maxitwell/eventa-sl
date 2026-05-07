@@ -216,7 +216,9 @@ export async function POST(request: Request) {
         // Resolve email for logged-in users who didn't submit guestInfo
         let resolvedEmail = guestInfo?.email || null;
         let resolvedName = guestInfo?.name || null;
+
         if (!resolvedEmail && userId) {
+            // Fallback 1: Firebase Auth (works for email/password and Google sign-in)
             try {
                 const { getAuth } = await import('firebase-admin/auth');
                 const userRecord = await getAuth().getUser(userId);
@@ -224,6 +226,20 @@ export async function POST(request: Request) {
                 resolvedName = userRecord.displayName || resolvedEmail || null;
             } catch (err) {
                 console.warn('[PawaPay Checkout] Could not fetch user email from Auth:', err);
+            }
+        }
+
+        if (!resolvedEmail && userId) {
+            // Fallback 2: Firestore users document (covers phone-auth users who registered with email)
+            try {
+                const userDoc = await adminDb.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data() as { email?: string; name?: string };
+                    resolvedEmail = userData?.email || null;
+                    if (!resolvedName) resolvedName = userData?.name || resolvedEmail || null;
+                }
+            } catch (err) {
+                console.warn('[PawaPay Checkout] Could not fetch user email from Firestore:', err);
             }
         }
 

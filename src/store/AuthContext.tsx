@@ -53,10 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 setCurrentUser({
                     id: firebaseUser.uid,
-                    name: firebaseUser.displayName || "Eventa User",
-                    email: firebaseUser.email || "",
+                    name: firebaseUser.displayName || userProfile?.name || "Eventa User",
+                    email: firebaseUser.email || userProfile?.email || "",
                     avatar: firebaseUser.photoURL || undefined,
-                    role: userProfile?.role || "attendee", // Default to attendee if no profile
+                    role: userProfile?.role || "attendee",
                     savedEvents: userProfile?.savedEvents || [],
                 });
             } else {

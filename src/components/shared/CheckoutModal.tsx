@@ -33,7 +33,13 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
     const [guestConfirmEmail, setGuestConfirmEmail] = useState("");
     const [guestPhone, setGuestPhone] = useState("");
 
+    // Email for logged-in users who have no email on their account (e.g. phone-auth users)
+    const [loggedInEmail, setLoggedInEmail] = useState("");
+    const [loggedInEmailConfirm, setLoggedInEmailConfirm] = useState("");
+
     const isFreeOrder = totalPrice === 0;
+    // True when the user is logged in but has no email address (e.g. phone OTP sign-in)
+    const needsEmailForDelivery = isLoggedIn && !currentUser?.email;
 
     const handlePayment = async () => {
         if (!agreeTerms) {
@@ -58,14 +64,33 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
             }
         }
 
+        // Logged-in users without an email must provide one to receive their ticket
+        if (needsEmailForDelivery) {
+            if (!loggedInEmail.trim() || !loggedInEmailConfirm.trim()) {
+                showToast("Please enter your email address to receive your tickets.", "error");
+                return;
+            }
+            if (loggedInEmail.trim().toLowerCase() !== loggedInEmailConfirm.trim().toLowerCase()) {
+                showToast("Email addresses do not match.", "error");
+                return;
+            }
+        }
+
         setIsProcessing(true);
 
         try {
+            const resolvedEmail = isLoggedIn
+                ? (currentUser?.email || loggedInEmail.trim().toLowerCase())
+                : guestEmail.trim().toLowerCase();
+
             const guestInfoPayload = !isLoggedIn ? {
                 name: `${guestFirstName.trim()} ${guestSurname.trim()}`,
-                email: guestEmail.trim().toLowerCase(),
+                email: resolvedEmail,
                 phone: guestPhone.trim() || undefined,
-            } : null;
+            } : {
+                name: currentUser?.name || '',
+                email: resolvedEmail,
+            };
 
             // ── Free / RSVP flow ──────────────────────────────────────
             if (isFreeOrder) {
@@ -209,6 +234,29 @@ export function CheckoutModal({ isOpen, onClose, onBack }: CheckoutModalProps) {
                                     onChange={(e) => setGuestPhone(e.target.value)}
                                 />
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Email collection for logged-in users who signed up with phone (no email on account) */}
+                {needsEmailForDelivery && (
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-sm mb-3">
+                            Email for ticket delivery <span className="text-gray-500 font-normal text-xs">(your account has no email)</span>
+                        </h4>
+                        <div className="space-y-3">
+                            <Input
+                                placeholder="Email Address"
+                                type="email"
+                                value={loggedInEmail}
+                                onChange={(e) => setLoggedInEmail(e.target.value)}
+                            />
+                            <Input
+                                placeholder="Confirm Email Address"
+                                type="email"
+                                value={loggedInEmailConfirm}
+                                onChange={(e) => setLoggedInEmailConfirm(e.target.value)}
+                            />
                         </div>
                     </div>
                 )}

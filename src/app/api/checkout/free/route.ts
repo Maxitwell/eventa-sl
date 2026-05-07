@@ -65,8 +65,38 @@ export async function POST(request: Request) {
         // Fix 8: use crypto.randomUUID — unpredictable, no collision risk
         const orderId = `free-${crypto.randomUUID()}`;
 
+        // Resolve the email to send the ticket to — covers both guest and logged-in users
+        let emailTarget = guestInfo?.email || null;
+        let emailName = guestInfo?.name || 'Guest';
+
+        if (!emailTarget && userId) {
+            // Fallback 1: Firebase Auth (works for email/password and Google sign-in)
+            try {
+                const { getAuth } = await import('firebase-admin/auth');
+                const userRecord = await getAuth().getUser(userId);
+                emailTarget = userRecord.email || null;
+                emailName = userRecord.displayName || emailTarget || 'Guest';
+            } catch (err) {
+                console.warn('[Free Checkout] Could not fetch user email from Auth:', err);
+            }
+        }
+
+        if (!emailTarget && userId) {
+            // Fallback 2: Firestore users document (covers phone-auth users who registered with email)
+            try {
+                const userDoc = await adminDb.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data() as { email?: string; name?: string };
+                    emailTarget = userData?.email || null;
+                    if (emailName === 'Guest') emailName = userData?.name || emailTarget || 'Guest';
+                }
+            } catch (err) {
+                console.warn('[Free Checkout] Could not fetch user email from Firestore:', err);
+            }
+        }
+
         // Fix 10: guard against undefined email producing userId "guest_undefined"
-        const resolvedUserId = userId || (guestInfo?.email ? `guest_${guestInfo.email}` : `guest_anon_${crypto.randomUUID()}`);
+        const resolvedUserId = userId || (emailTarget ? `guest_${emailTarget}` : `guest_anon_${crypto.randomUUID()}`);
 
         await adminDb.runTransaction(async (t) => {
             const eventDoc = await t.get(eventRef);
@@ -151,19 +181,6 @@ export async function POST(request: Request) {
 
         await batch.commit();
 
-        // Resolve the email to send the ticket to — covers both guest and logged-in users
-        let emailTarget = guestInfo?.email || null;
-        let emailName = guestInfo?.name || 'Guest';
-        if (!emailTarget && userId) {
-            try {
-                const { getAuth } = await import('firebase-admin/auth');
-                const userRecord = await getAuth().getUser(userId);
-                emailTarget = userRecord.email || null;
-                emailName = userRecord.displayName || emailTarget || 'Guest';
-            } catch (err) {
-                console.warn('[Free Checkout] Could not fetch user email from Auth:', err);
-            }
-        }
         const eventName = tickets[0].eventName;
 
         if (emailTarget && ticketIds.length > 0) {
