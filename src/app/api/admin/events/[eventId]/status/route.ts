@@ -4,15 +4,15 @@ import { getAdminDb, getAdminAuth } from "@/lib/firebase-admin";
 const ADMIN_EMAIL = "admin@eventa.africa";
 const VALID_STATUSES = ["published", "paused", "cancelled", "draft"] as const;
 
-async function verifyAdminToken(request: Request): Promise<boolean> {
+async function verifyAdminToken(request: Request): Promise<string | null> {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return false;
+    if (!authHeader?.startsWith("Bearer ")) return null;
     const idToken = authHeader.slice("Bearer ".length);
     try {
         const decoded = await getAdminAuth().verifyIdToken(idToken);
-        return decoded.email === ADMIN_EMAIL;
+        return decoded.email === ADMIN_EMAIL ? decoded.uid : null;
     } catch {
-        return false;
+        return null;
     }
 }
 
@@ -20,8 +20,8 @@ export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ eventId: string }> }
 ) {
-    const isAdmin = await verifyAdminToken(request);
-    if (!isAdmin) {
+    const adminUid = await verifyAdminToken(request);
+    if (!adminUid) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -35,11 +35,30 @@ export async function PATCH(
 
     try {
         const db = getAdminDb();
+        const now = new Date().toISOString();
+
+        // Read previous status for the audit record
+        const eventSnap = await db.collection("events").doc(eventId).get();
+        const previousStatus = eventSnap.exists ? (eventSnap.data() as { status?: string }).status : null;
+
         await db.collection("events").doc(eventId).update({
             status,
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
             updatedBy: ADMIN_EMAIL,
         });
+
+        // Fix 17: write an immutable audit log entry so admin actions are traceable
+        await db.collection("auditLogs").add({
+            action: "event_status_changed",
+            adminUid,
+            adminEmail: ADMIN_EMAIL,
+            targetId: eventId,
+            targetCollection: "events",
+            previousValue: previousStatus ?? null,
+            newValue: status,
+            timestamp: now,
+        });
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Admin Event Status] Failed to update:", error);

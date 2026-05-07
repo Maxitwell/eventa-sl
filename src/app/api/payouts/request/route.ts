@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
+import crypto from 'crypto';
 
-const PLATFORM_FEE_RATE = 0.05; // 5% platform fee
+const PLATFORM_FEE_RATE = 0.05;
 const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
 
 export async function POST(request: Request) {
@@ -28,7 +29,6 @@ export async function POST(request: Request) {
 
     const db = getAdminDb();
 
-    // Verify organizer owns this event
     const eventSnap = await db.collection('events').doc(eventId).get();
     if (!eventSnap.exists) {
         return NextResponse.json({ error: 'Event not found' }, { status: 404 });
@@ -48,7 +48,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'A payout for this event is already in progress or completed' }, { status: 400 });
     }
 
-    // Calculate gross revenue from paid orders
+    // Fix 6: block payout if any orders are in refund_pending state.
+    // Those orders are still technically 'paid' in Firestore until PawaPay confirms the refund,
+    // so without this check the organiser could receive money that's about to go back to customers.
+    const refundPendingSnap = await db
+        .collection('orders')
+        .where('eventId', '==', eventId)
+        .where('status', '==', 'refund_pending')
+        .get();
+    if (!refundPendingSnap.empty) {
+        return NextResponse.json({
+            error: `Cannot pay out while ${refundPendingSnap.size} refund(s) are still pending confirmation. Please wait for all refunds to complete.`,
+        }, { status: 400 });
+    }
+
     const ordersSnap = await db
         .collection('orders')
         .where('eventId', '==', eventId)
@@ -67,7 +80,6 @@ export async function POST(request: Request) {
     const platformFee = Math.round(grossRevenue * PLATFORM_FEE_RATE);
     const netAmount = grossRevenue - platformFee;
 
-    // Get payout details from event
     const payoutDetails = event.payoutDetails as {
         method?: string;
         accountNumber?: string;
@@ -78,9 +90,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'No payout details set for this event. Please edit the event and add payout details.' }, { status: 400 });
     }
 
-    const payoutId = `payout-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const payoutId = `payout-${crypto.randomUUID()}`;
 
-    // Format phone for PawaPay
     let formattedPhone = payoutDetails.accountNumber.replace(/\D/g, '');
     if (!formattedPhone.startsWith('232')) {
         formattedPhone = '232' + formattedPhone.replace(/^0+/, '');

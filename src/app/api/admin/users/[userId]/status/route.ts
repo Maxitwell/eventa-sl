@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 
 const ADMIN_EMAIL = "admin@eventa.africa";
 
-async function verifyAdminToken(request: Request): Promise<boolean> {
+async function verifyAdminToken(request: Request): Promise<string | null> {
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return false;
+    if (!authHeader?.startsWith("Bearer ")) return null;
     const idToken = authHeader.slice("Bearer ".length);
     try {
         const decoded = await getAdminAuth().verifyIdToken(idToken);
-        return decoded.email === ADMIN_EMAIL;
+        return decoded.email === ADMIN_EMAIL ? decoded.uid : null;
     } catch {
-        return false;
+        return null;
     }
 }
 
@@ -19,8 +19,8 @@ export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ userId: string }> }
 ) {
-    const isAdmin = await verifyAdminToken(request);
-    if (!isAdmin) {
+    const adminUid = await verifyAdminToken(request);
+    if (!adminUid) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -32,13 +32,25 @@ export async function PATCH(
         return NextResponse.json({ error: "Invalid request: 'disabled' must be a boolean" }, { status: 400 });
     }
 
-    // Prevent the super admin from blocking themselves
     if (userId === ADMIN_EMAIL) {
         return NextResponse.json({ error: "Cannot modify the super admin account" }, { status: 403 });
     }
 
     try {
         await getAdminAuth().updateUser(userId, { disabled });
+
+        // Fix 17: write an immutable audit log entry so user enable/disable actions are traceable
+        await getAdminDb().collection("auditLogs").add({
+            action: disabled ? "user_disabled" : "user_enabled",
+            adminUid,
+            adminEmail: ADMIN_EMAIL,
+            targetId: userId,
+            targetCollection: "users",
+            previousValue: !disabled,
+            newValue: disabled,
+            timestamp: new Date().toISOString(),
+        });
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Admin User Status] Failed to update:", error);

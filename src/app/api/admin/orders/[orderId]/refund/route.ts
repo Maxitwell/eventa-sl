@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
+import crypto from 'crypto';
 
 const ADMIN_EMAIL = 'admin@eventa.africa';
 const PAWAPAY_API_BASE = process.env.PAWAPAY_API_URL ?? 'https://api.pawapay.io/v1';
@@ -27,36 +28,59 @@ export async function POST(
 
     const { orderId } = await params;
     const db = getAdminDb();
+    const orderRef = db.collection('orders').doc(orderId);
 
-    // Fetch the order
-    const orderSnap = await db.collection('orders').doc(orderId).get();
-    if (!orderSnap.exists) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    const order = orderSnap.data() as {
+    // Fix 5: use a Firestore transaction to atomically check status and claim it for refund.
+    // Two simultaneous admin refund clicks can no longer both pass the status guard and both
+    // call PawaPay — only the first one gets through; the second sees 'refund_pending'.
+    type OrderSnapshot = {
         status: string;
         amount: number;
         currency: string;
         depositId: string;
         guestEmail?: string;
-        guestPhone?: string;
         isFree?: boolean;
     };
 
-    if (order.status === 'refunded') {
-        return NextResponse.json({ error: 'Order has already been refunded' }, { status: 400 });
+    let order: OrderSnapshot | null = null;
+    try {
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(orderRef);
+            if (!snap.exists) throw new Error('not_found');
+
+            const data = snap.data() as OrderSnapshot;
+            if (data.status === 'refunded') throw new Error('already_refunded');
+            if (data.status === 'refund_pending') throw new Error('already_pending');
+            if (data.status !== 'paid') throw new Error(`bad_status:${data.status}`);
+
+            // Atomically move to refund_pending so no second request can sneak through
+            tx.update(orderRef, {
+                status: 'refund_pending',
+                updatedAt: new Date().toISOString(),
+                refundInitiatedBy: ADMIN_EMAIL,
+            });
+            order = data;
+        });
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        if (msg === 'not_found') return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+        if (msg === 'already_refunded') return NextResponse.json({ error: 'Order has already been refunded' }, { status: 400 });
+        if (msg === 'already_pending') return NextResponse.json({ error: 'Refund already in progress' }, { status: 400 });
+        if (msg.startsWith('bad_status:')) {
+            const s = msg.split(':')[1];
+            return NextResponse.json({ error: `Cannot refund an order with status: ${s}` }, { status: 400 });
+        }
+        console.error('[Admin Refund] Transaction error:', err);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 
-    if (order.status !== 'paid') {
-        return NextResponse.json({ error: `Cannot refund an order with status: ${order.status}` }, { status: 400 });
-    }
+    const o = order as unknown as OrderSnapshot;
 
-    if (order.isFree || order.amount === 0) {
-        // Free tickets — no payment to reverse, just mark as refunded
+    if (o.isFree || o.amount === 0) {
+        // Free tickets — no payment to reverse, just mark refunded
         const now = new Date().toISOString();
         const batch = db.batch();
-        batch.update(db.collection('orders').doc(orderId), { status: 'refunded', updatedAt: now });
+        batch.update(orderRef, { status: 'refunded', updatedAt: now });
         const ticketsSnap = await db.collection('tickets').where('orderId', '==', orderId).get();
         ticketsSnap.docs.forEach((d) => batch.update(d.ref, { status: 'refunded', refundConfirmedAt: now }));
         await batch.commit();
@@ -64,11 +88,11 @@ export async function POST(
     }
 
     // Initiate refund via PawaPay
-    const refundId = `ref-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const refundId = `ref-${crypto.randomUUID()}`;
     const pawapayPayload = {
         refundId,
-        depositId: order.depositId,
-        amount: order.amount.toString(),
+        depositId: o.depositId,
+        amount: o.amount.toString(),
         metadata: [{ fieldName: 'orderId', fieldValue: orderId, isPII: false }],
     };
 
@@ -83,20 +107,17 @@ export async function POST(
 
     if (!pawapayRes.ok) {
         const detail = await pawapayRes.json().catch(() => ({}));
-        console.error('[Admin Refund] PawaPay error:', detail);
+        console.error('[Admin Refund] PawaPay rejected refund — reverting order to paid:', detail);
+        // Revert status so admin can retry
+        await orderRef.update({ status: 'paid', updatedAt: new Date().toISOString() }).catch(() => null);
         return NextResponse.json(
             { error: 'Refund request rejected by payment provider', detail },
             { status: pawapayRes.status }
         );
     }
 
-    // Mark order as refund_pending — the webhook will set it to refunded when PawaPay confirms
-    await db.collection('orders').doc(orderId).update({
-        status: 'refund_pending',
-        refundId,
-        updatedAt: new Date().toISOString(),
-        refundInitiatedBy: ADMIN_EMAIL,
-    });
+    // PawaPay accepted — store the refundId; webhook will set final status to 'refunded'
+    await orderRef.update({ refundId, updatedAt: new Date().toISOString() });
 
     return NextResponse.json({ success: true, refundId, message: 'Refund initiated — awaiting provider confirmation' });
 }

@@ -10,17 +10,28 @@ function timingSafeCompare(a: string, b: string): boolean {
 
 export function assertWebhookSecret(requestSecret: string | null): boolean {
   const expected = process.env.PAWAPAY_WEBHOOK_SECRET;
-  // If no secret is configured, allow through (set PAWAPAY_WEBHOOK_SECRET to lock down)
-  if (!expected) return true;
+  // Fix 1: always reject if the secret env var is not configured — open webhooks are a critical risk
+  if (!expected) {
+    console.error("[Webhook] PAWAPAY_WEBHOOK_SECRET is not set — rejecting all webhook calls until configured");
+    return false;
+  }
   if (!requestSecret) return false;
   return timingSafeCompare(requestSecret, expected);
 }
 
+// Fix 7: wrap check+write in a transaction to eliminate TOCTOU race
+// Two simultaneous deliveries of the same webhook can no longer both slip through.
 export async function isWebhookReplay(idempotencyKey: string): Promise<boolean> {
   const adminDb = getAdminDb();
   const ref = adminDb.collection("webhookEvents").doc(idempotencyKey);
-  const snap = await ref.get();
-  if (snap.exists) return true;
-  await ref.set({ processedAt: new Date().toISOString() });
-  return false;
+  let isReplay = false;
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      isReplay = true;
+    } else {
+      tx.set(ref, { processedAt: new Date().toISOString() });
+    }
+  });
+  return isReplay;
 }
