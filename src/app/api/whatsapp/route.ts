@@ -11,7 +11,7 @@ const PAGE_SIZE = 10;
 // Twilio Content SIDs
 const SID_WELCOME_MENU = 'HXb3c0ecd04381a81835fefe47ad58cb80';
 const SID_EVENT_LIST = 'HX93ad5545279677b24b9e4dd1475780f7';
-const SID_EVENT_CARD = 'HXefd9ac2e016ffde8a8ada932a195355f';
+const SID_EVENT_CARD = 'HX3a67d351a8138dc9a1b81962d0baf9a9';
 const SID_PAYMENT_PENDING = 'HXd857671a663ae84483b94902ea366c12';
 const SID_TICKET_TIER = 'HXe49c578fa0af7ceeb96957eea295e5a8';
 
@@ -198,10 +198,22 @@ export async function POST(req: NextRequest) {
                 } else {
                     await setSession(from, { ...session, step: 'event_preview', pendingEventId: ev.id });
                     templateSid = SID_EVENT_CARD;
+                    
+                    let details = `*${ev.title}*\n\n`;
+                    if (ev.date) details += `📅 ${ev.date}\n`;
+                    if (ev.time) details += `⏰ ${ev.time}\n`;
+                    if (ev.location) details += `📍 ${ev.location}\n`;
+                    if (ev.talents && ev.talents.length > 0) {
+                        const talentStr = ev.talents.map((t: any) => `${t.name} (${t.role})`).join(', ');
+                        details += `\n🎤 *Line Up*: ${talentStr}\n`;
+                    }
+                    if (ev.description) {
+                        details += `\n${ev.description}`;
+                    }
+
                     templateVars = {
                         '1': ev.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
-                        '2': ev.title.slice(0, 24),
-                        '3': `📅 ${ev.date}\n📍 ${ev.location}`.slice(0, 72)
+                        '2': details.slice(0, 1000)
                     };
                 }
 
