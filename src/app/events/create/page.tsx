@@ -117,8 +117,8 @@ export default function CreateEvent() {
     const [organizerName, setOrganizerName] = useState("");
     const [talents, setTalents] = useState<{ id: string; name: string; role: string }[]>([]);
 
-    // Ticketing State
-    const [isFreeEvent, setIsFreeEvent] = useState(false);
+    // Ticketing State — locked to free during beta
+    const [isFreeEvent] = useState(true);
     const [tickets, setTickets] = useState([
         { id: Date.now().toString(), name: "Regular Admission", quantity: 100, price: 0, isPrivate: false, description: "" }
     ]);
@@ -680,36 +680,24 @@ export default function CreateEvent() {
                             <Ticket size={20} className="text-orange-500" /> Tickets
                         </h3>
 
-                        {/* Free event toggle — prominent card */}
-                        <button
-                            type="button"
-                            onClick={() => setIsFreeEvent(!isFreeEvent)}
-                            className={`w-full text-left rounded-2xl p-5 border-2 transition-all ${
-                                isFreeEvent
-                                    ? "border-orange-500 bg-orange-50"
-                                    : "border-gray-200 bg-white hover:border-orange-300"
-                            }`}
-                        >
+                        {/* Beta: free events only */}
+                        <div className="w-full rounded-2xl p-5 border-2 border-orange-500 bg-orange-50">
                             <div className="flex items-center justify-between gap-4">
                                 <div>
-                                    <p className="font-bold text-gray-900 text-base">Free Event</p>
-                                    <p className="text-sm text-gray-500 mt-0.5">
-                                        {isFreeEvent
-                                            ? "This event is free — no ticket price required."
-                                            : "Toggle on if attendees don't need to pay to attend."}
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <p className="font-bold text-gray-900 text-base">Free Event</p>
+                                        <span className="text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">BETA</span>
+                                    </div>
+                                    <p className="text-sm text-gray-500">
+                                        Paid ticketing is coming soon. All events are free during the beta.
                                     </p>
                                 </div>
                                 <div className="relative inline-flex items-center shrink-0">
-                                    <div className={`w-12 h-6 rounded-full transition-colors ${isFreeEvent ? "bg-orange-500" : "bg-gray-200"}`}>
-                                        <div className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow transition-all ${isFreeEvent ? "left-[26px]" : "left-[2px]"}`} />
+                                    <div className="w-12 h-6 rounded-full bg-orange-500">
+                                        <div className="absolute top-[2px] left-[26px] w-5 h-5 bg-white rounded-full shadow" />
                                     </div>
                                 </div>
                             </div>
-                        </button>
-
-                        <div className="flex items-center gap-2 bg-blue-50 text-blue-600 p-3 rounded-xl text-sm border border-blue-200">
-                            <Info size={16} className="shrink-0" />
-                            An 8% transaction fee applies to all paid tickets.
                         </div>
 
                         {!isFreeEvent && (

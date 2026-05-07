@@ -69,6 +69,7 @@ export function Navbar() {
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center gap-2">
                             <img src="/desktop-logo.svg" alt="Eventa Logo" className="h-10 w-auto object-contain" />
+                            <span className="text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full tracking-wide">BETA</span>
                         </Link>
                         <div className="hidden md:flex ml-10 space-x-8">
                             {navLinks.map(link => {
