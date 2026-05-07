@@ -29,6 +29,9 @@ type CachedEvent = {
     date: string;
     location: string;
     currency: string;
+    time?: string;
+    description?: string;
+    talents?: any[];
     imageUrl?: string;
     tickets: CachedTicketTier[];
 };
@@ -140,6 +143,9 @@ export async function POST(req: NextRequest) {
                                 title: e.title as string,
                                 date: e.date as string,
                                 location: e.location as string,
+                                time: e.time as string | undefined,
+                                description: e.description as string | undefined,
+                                talents: e.talents as any[] | undefined,
                                 currency: (e.currency as string) || 'SLE',
                                 imageUrl: (e.image as string) || (e.imageUrl as string) || (e.bannerUrl as string) || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
                                 tickets: Array.isArray(e.tickets) && (e.tickets as unknown[]).length > 0
@@ -396,6 +402,9 @@ export async function POST(req: NextRequest) {
 
                     let currentPrice = session.price ?? 0;
                     let currentCurrency = session.currency ?? 'SLE';
+                    let currentDate = '';
+                    let currentTime = '';
+                    let currentLocation = '';
                     try {
                         const eventSnap = await db.collection('events').doc(eventId).get();
                         if (eventSnap.exists) {
@@ -404,6 +413,9 @@ export async function POST(req: NextRequest) {
                             const matchedTier = tiers?.find(t => t.name.trim().toLowerCase() === (session.ticketType ?? '').trim().toLowerCase());
                             currentPrice = matchedTier ? matchedTier.price : (typeof eventData.price === 'number' ? eventData.price : currentPrice);
                             currentCurrency = (eventData.currency as string) || currentCurrency;
+                            currentDate = (eventData.date as string) || '';
+                            currentTime = (eventData.time as string) || '';
+                            currentLocation = (eventData.location as string) || '';
                         }
                     } catch (err) {
                         console.error('[WhatsApp] Failed to re-validate price:', err);
@@ -597,7 +609,7 @@ async function issueFreeTicketWA(params: {
         await db.runTransaction(async (tx) => {
             const eventDoc = await tx.get(eventRef);
             if (!eventDoc.exists) throw new Error("Event not found");
-            const ed = eventDoc.data() as { totalCapacity?: number; capacity?: number; ticketsSold?: number; tierSoldCounts?: Record<string, number> };
+            const ed = eventDoc.data() as { totalCapacity?: number; capacity?: number; ticketsSold?: number; tierSoldCounts?: Record<string, number>; date?: string; time?: string; location?: string };
             const capacity = ed?.totalCapacity ?? ed?.capacity ?? 0;
             const sold = ed?.ticketsSold ?? 0;
             if (capacity > 0 && sold + 1 > capacity) {
@@ -608,6 +620,7 @@ async function issueFreeTicketWA(params: {
             tx.update(eventRef, { ticketsSold: sold + 1, tierSoldCounts: newTierSoldCounts });
             tx.set(ticketRef, {
                 orderId, eventId, eventName, userId: waUserId, ticketType, status: 'valid',
+                date: ed.date ?? '', time: ed.time ?? '', location: ed.location ?? '',
                 pricePaid: 0, purchaseDate: now, channel: 'whatsapp', waFrom: from, qrCode: qrCodeDataUrl,
             });
         });
@@ -626,8 +639,10 @@ async function issueFreeTicketWA(params: {
 
     await setSession(from, { step: 'browsing' });
 
+    const appUrl = (process.env.APP_URL ?? 'https://eventa.africa').replace(/\/$/, '');
+    const ticketUrl = `${appUrl}/ticket/${ticketRef.id}`;
     return {
-        responseMessage: `${hi}\n\n✅ *Your free ticket is confirmed!*\n\n🎟️ *${eventName}*\nType: *${ticketType}*\n🆔 Ticket ID: *${ticketRef.id.slice(-8).toUpperCase()}*\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`,
+        responseMessage: `${hi}\n\n✅ *Your free ticket is confirmed!*\n\n🎟️ *${eventName}*\nType: *${ticketType}*\n🆔 Ticket ID: *${ticketRef.id.slice(-8).toUpperCase()}*\n\n📲 View & save your QR code:\n${ticketUrl}\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`,
     };
 }
 
