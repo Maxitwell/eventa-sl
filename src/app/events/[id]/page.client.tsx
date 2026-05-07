@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useToast } from "@/components/shared/ToastProvider";
 import { useModals } from "@/components/shared/ModalProvider";
-import { getEventById, EventEntity } from "@/lib/db";
+import { getEventById, isEventUpcoming, EventEntity } from "@/lib/db";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Calendar, Clock, MapPin, Map, Users, Ticket, Phone, Mail, MessageCircle, Instagram, Twitter, Globe, Facebook, ArrowLeft, Star, Share2 } from "lucide-react";
@@ -88,7 +88,8 @@ export default function EventDetailsPage() {
     }
 
     const primaryCategory = event.categories?.[0] || "Event";
-    const isSoldOut = event.ticketsSold >= event.totalCapacity && event.totalCapacity > 0;
+    const isEnded = !isEventUpcoming(event);
+    const isSoldOut = !isEnded && event.ticketsSold >= event.totalCapacity && event.totalCapacity > 0;
     const isFree = event.price === 0;
     const remaining = Math.max(0, (event.totalCapacity || 0) - (event.ticketsSold || 0));
     const soldPct = event.totalCapacity > 0 ? Math.min(100, ((event.ticketsSold || 0) / event.totalCapacity) * 100) : 0;
@@ -142,7 +143,12 @@ export default function EventDetailsPage() {
                             <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                                 {primaryCategory}
                             </span>
-                            {event.featured && (
+                            {isEnded && (
+                                <span className="bg-gray-700 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                    Event Ended
+                                </span>
+                            )}
+                            {event.featured && !isEnded && (
                                 <span className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-green-600/30 flex items-center gap-1">
                                     <Star size={10} /> Featured
                                 </span>
@@ -166,7 +172,11 @@ export default function EventDetailsPage() {
                         {isFree ? "Free" : `${event.currency || "SLe"} ${event.price.toLocaleString()}`}
                     </span>
                 </div>
-                {!isSoldOut ? (
+                {isEnded ? (
+                    <Button size="lg" variant="outline" className="shrink-0 py-3 px-6" disabled>
+                        Event Ended
+                    </Button>
+                ) : !isSoldOut ? (
                     <Button size="lg" className="shrink-0 py-3 px-6" onClick={() => openTicketModal(event)}>
                         <Ticket size={18} className="mr-2" /> Get Tickets
                     </Button>
@@ -302,7 +312,11 @@ export default function EventDetailsPage() {
                             </span>
                         </div>
 
-                        {!isSoldOut ? (
+                        {isEnded ? (
+                            <Button className="w-full py-4 text-lg" size="lg" variant="outline" disabled>
+                                Event Ended
+                            </Button>
+                        ) : !isSoldOut ? (
                             <Button
                                 className="w-full py-4 text-lg"
                                 size="lg"

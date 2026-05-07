@@ -39,6 +39,7 @@ export interface EventEntity {
   title: string;
   date: string;
   time: string;
+  eventTimestamp?: string; // ISO — authoritative field for sorting and past-event filtering
   location: string;
   price: number;
   currency: string;
@@ -70,6 +71,20 @@ export interface EventEntity {
   };
   doorPin?: string;
   tierSoldCounts?: Record<string, number>;
+}
+
+export function isEventUpcoming(event: Pick<EventEntity, 'eventTimestamp' | 'date'>): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (event.eventTimestamp) {
+    return new Date(event.eventTimestamp) >= today;
+  }
+  // Fallback for events without eventTimestamp: parse "May 07" with current year
+  if (event.date) {
+    const parsed = new Date(`${event.date} ${today.getFullYear()}`);
+    if (!isNaN(parsed.getTime())) return parsed >= today;
+  }
+  return true;
 }
 
 export interface TicketEntity {
@@ -147,7 +162,15 @@ export async function getPublishedEvents(): Promise<EventEntity[]> {
   try {
     const q = query(eventsRef, where("status", "==", "published"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as EventEntity);
+    return snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }) as EventEntity)
+      .filter(isEventUpcoming)
+      .sort((a, b) => {
+        const tsA = a.eventTimestamp ?? '';
+        const tsB = b.eventTimestamp ?? '';
+        if (tsA && tsB) return tsA.localeCompare(tsB);
+        return (a.date ?? '').localeCompare(b.date ?? '');
+      });
   } catch (error) {
     console.error("Error fetching events:", error);
     return [];

@@ -283,14 +283,19 @@ export default function CreateEvent() {
                 }
             }
 
-            // Format mock date to "Dec 20" style used in EventCard
+            // Format display date as "Dec 20" and compute ISO timestamp for filtering/sorting
             const dateObj = new Date(date);
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const formattedDate = `${monthNames[dateObj.getMonth()]} ${dateObj.getDate().toString().padStart(2, '0')}`;
+            const [h, m] = time.split(':').map(Number);
+            const tsDate = new Date(date);
+            tsDate.setHours(h || 0, m || 0, 0, 0);
+            const eventTimestamp = tsDate.toISOString();
 
             await createEvent({
                 title,
                 date: formattedDate,
+                eventTimestamp,
                 time,
                 endDate,
                 endTime,

@@ -10,7 +10,7 @@ import { useToast } from "@/components/shared/ToastProvider";
 import { Search, Filter, Calendar as CalendarIcon, ArrowRight, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { getPublishedEventsPaginated, EventEntity } from "@/lib/db";
+import { getPublishedEventsPaginated, isEventUpcoming, EventEntity } from "@/lib/db";
 import { motion, AnimatePresence } from "framer-motion";
 
 function Discover() {
@@ -34,7 +34,10 @@ function Discover() {
     setIsLoadingEvents(true);
     try {
       const { events, lastVisible: newLastVisible, hasMore: more } = await getPublishedEventsPaginated(null, 15);
-      setDbEvents(events);
+      const upcoming = events
+        .filter(isEventUpcoming)
+        .sort((a, b) => (a.eventTimestamp ?? a.date ?? '').localeCompare(b.eventTimestamp ?? b.date ?? ''));
+      setDbEvents(upcoming);
       setLastVisible(newLastVisible);
       setHasMore(more);
     } catch (error) {
@@ -59,7 +62,8 @@ function Discover() {
     setIsLoadingMore(true);
     try {
       const { events, lastVisible: newLastVisible, hasMore: more } = await getPublishedEventsPaginated(lastVisible, 15);
-      setDbEvents(prev => [...prev, ...events]);
+      const upcoming = events.filter(isEventUpcoming);
+      setDbEvents(prev => [...prev, ...upcoming]);
       setLastVisible(newLastVisible);
       setHasMore(more);
     } catch (error) {

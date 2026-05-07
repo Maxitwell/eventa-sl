@@ -37,7 +37,7 @@ type CachedEvent = {
 };
 
 type SessionState = {
-    step: "browsing" | "event_preview" | "ticket_selection" | "event_selected" | "payment_pending";
+    step: "browsing" | "event_preview" | "ticket_selection" | "collecting_name" | "event_selected" | "payment_pending";
     pendingEventId?: string;
     pendingEventName?: string;
     pendingTickets?: CachedTicketTier[];
@@ -50,6 +50,8 @@ type SessionState = {
     depositId?: string;
     eventsList?: CachedEvent[];
     eventsPage?: number;
+    guestName?: string;
+    pendingIntent?: 'free' | 'paid';
     updatedAt?: string;
 };
 
@@ -134,10 +136,25 @@ export async function POST(req: NextRequest) {
                         const snap = await db.collection('events')
                             .where('status', '==', 'published')
                             .get();
+                        const todayMs = new Date().setHours(0, 0, 0, 0);
                         allEvents = snap.docs
                             .map(d => ({ id: d.id, ...d.data() as Record<string, unknown> }))
-                            .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
-                                ((a.date as string) ?? '').localeCompare((b.date as string) ?? ''))
+                            .filter((e: Record<string, unknown>) => {
+                                const ts = e.eventTimestamp as string | undefined;
+                                if (ts) return new Date(ts).getTime() >= todayMs;
+                                const dateStr = e.date as string | undefined;
+                                if (dateStr) {
+                                    const parsed = new Date(`${dateStr} ${new Date().getFullYear()}`);
+                                    if (!isNaN(parsed.getTime())) return parsed.getTime() >= todayMs;
+                                }
+                                return true;
+                            })
+                            .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+                                const tsA = (a.eventTimestamp as string) ?? '';
+                                const tsB = (b.eventTimestamp as string) ?? '';
+                                if (tsA && tsB) return tsA.localeCompare(tsB);
+                                return ((a.date as string) ?? '').localeCompare((b.date as string) ?? '');
+                            })
                             .map((e: Record<string, unknown>) => ({
                                 id: e.id as string,
                                 title: e.title as string,
@@ -302,21 +319,31 @@ export async function POST(req: NextRequest) {
                 } else if (ev.tickets.length === 1) {
                     const t0 = ev.tickets[0];
                     const rem0 = t0.quantity > 0 ? Math.max(0, t0.quantity - t0.soldCount) : null;
+                    const remLine0 = rem0 !== null ? `\n🎫 Remaining: *${rem0}*` : '';
                     if (t0.price === 0) {
-                        const result = await issueFreeTicketWA({ from, eventId: ev.id, eventName: ev.title, ticketType: t0.name, hi, sig });
-                        responseMessage = result.responseMessage;
+                        await setSession(from, {
+                            ...session,
+                            step: 'collecting_name',
+                            pendingIntent: 'free',
+                            eventId: ev.id,
+                            eventName: ev.title,
+                            ticketType: t0.name,
+                            price: 0,
+                            currency: ev.currency,
+                        });
+                        responseMessage = `${hi}\n\nGreat choice! 🎟️\n\n*${ev.title}*\nType: *${t0.name}* (Free)\n\nPlease reply with your *full name* to get your ticket.${sig}`;
                     } else {
                         await setSession(from, {
                             ...session,
-                            step: 'event_selected',
+                            step: 'collecting_name',
+                            pendingIntent: 'paid',
                             eventId: ev.id,
                             eventName: ev.title,
                             ticketType: t0.name,
                             price: t0.price,
                             currency: ev.currency,
                         });
-                        const remLine0 = rem0 !== null ? `\n🎫 Remaining: *${rem0}*` : '';
-                        responseMessage = `${hi}\n\nYou're booking for *${ev.title}*.\n\n🎟️ Ticket: *${t0.name}*\n💰 Price: *${ev.currency} ${t0.price}*${remLine0}\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                        responseMessage = `${hi}\n\nGreat choice! 🎟️\n\n*${ev.title}*\nType: *${t0.name}*\n💰 Price: *${ev.currency} ${t0.price}*${remLine0}\n\nPlease reply with your *full name* to continue.${sig}`;
                     }
                 } else {
                     await setSession(from, {
@@ -362,25 +389,54 @@ export async function POST(req: NextRequest) {
                 if (tierIndex >= 0 && tierIndex < tiers.length) {
                     const chosen = tiers[tierIndex];
                     if (chosen.price === 0) {
-                        const result = await issueFreeTicketWA({ from, eventId: session.pendingEventId!, eventName: session.pendingEventName!, ticketType: chosen.name, hi, sig });
-                        responseMessage = result.responseMessage;
+                        await setSession(from, {
+                            ...session,
+                            step: 'collecting_name',
+                            pendingIntent: 'free',
+                            eventId: session.pendingEventId,
+                            eventName: session.pendingEventName,
+                            ticketType: chosen.name,
+                            price: 0,
+                            currency: session.pendingCurrency,
+                        });
+                        responseMessage = `${hi}\n\nGreat choice! 🎟️\n\n*${session.pendingEventName}*\nType: *${chosen.name}* (Free)\n\nPlease reply with your *full name* to get your ticket.${sig}`;
                     } else {
                         await setSession(from, {
                             ...session,
-                            step: 'event_selected',
+                            step: 'collecting_name',
+                            pendingIntent: 'paid',
                             eventId: session.pendingEventId,
                             eventName: session.pendingEventName,
                             ticketType: chosen.name,
                             price: chosen.price,
                             currency: session.pendingCurrency,
                         });
-                        responseMessage = `${hi}\n\nYou're booking for *${session.pendingEventName}*.\n\n🎟️ Ticket: *${chosen.name}*\n💰 Price: *${session.pendingCurrency} ${chosen.price}*\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                        responseMessage = `${hi}\n\nGreat choice! 🎟️\n\n*${session.pendingEventName}*\nType: *${chosen.name}*\n💰 Price: *${session.pendingCurrency} ${chosen.price}*\n\nPlease reply with your *full name* to continue.${sig}`;
                     }
                 } else {
                     responseMessage = "That ticket is currently unavailable. Please select another.";
                 }
             } else {
                 responseMessage = "Please use the menu above to select a ticket tier.";
+            }
+
+        // ── Step: collecting_name ─────────────────────────────────────────────
+        } else if (session.step === "collecting_name") {
+            if (lowerBody === "cancel" || lowerBody === "back" || lowerBody === "main_menu") {
+                await resetSession(from);
+                templateSid = SID_WELCOME_MENU;
+                templateVars = { '1': profileName || 'there' };
+            } else if (body.trim().length >= 2) {
+                const guestName = body.trim();
+                if (session.pendingIntent === 'free') {
+                    const result = await issueFreeTicketWA({ from, eventId: session.eventId!, eventName: session.eventName!, ticketType: session.ticketType!, hi, sig, guestName });
+                    responseMessage = result.responseMessage;
+                } else {
+                    await setSession(from, { ...session, step: 'event_selected', guestName });
+                    responseMessage = `${hi}\n\nThanks, *${guestName}*! 🎟️\n\nYou're booking for *${session.eventName}*.\nTicket: *${session.ticketType}*\n💰 Price: *${session.currency ?? 'SLE'} ${session.price}*\n\nPlease reply with your *Orange Money number* to receive the payment prompt.\n_e.g. 076123456_${sig}`;
+                }
+            } else {
+                responseMessage = `${hi}\n\nPlease enter your *full name* (at least 2 characters) to continue.${sig}`;
             }
 
         // ── Step: event_selected ──────────────────────────────────────────────
@@ -485,7 +541,7 @@ export async function POST(req: NextRequest) {
                     }
 
                     await ticketRef.set({
-                        eventId, eventName: session.eventName, userId: waUserId, ticketType: session.ticketType ?? 'General Admission', status: 'payment_pending', pawapayDepositId: depositId, orderId: depositId, qrCode: qrCodeDataUrl, pricePaid: currentPrice, purchaseDate: now, guestPhone: phone, channel: 'whatsapp', waFrom: from,
+                        eventId, eventName: session.eventName, userId: waUserId, ticketType: session.ticketType ?? 'General Admission', status: 'payment_pending', pawapayDepositId: depositId, orderId: depositId, qrCode: qrCodeDataUrl, pricePaid: currentPrice, purchaseDate: now, guestPhone: phone, guestName: session.guestName || null, channel: 'whatsapp', waFrom: from,
                         date: currentDate, time: currentTime, location: currentLocation,
                     });
 
@@ -557,7 +613,7 @@ export async function POST(req: NextRequest) {
                         await resetSession(from);
 
                         const paidTicketId = ticketSnap.docs[0]?.id ?? '';
-                        const paidAppUrl = (process.env.APP_URL ?? 'https://eventa.africa').replace(/\/$/, '');
+                        const paidAppUrl = (process.env.APP_URL ?? 'https://www.eventa.africa').replace(/\/$/, '');
                         responseMessage = `${hi}\n\n✅ *Payment Confirmed!*\n\nYour ticket for *${session.eventName}* is ready.\n\n🎟️ Type: *${ticketData?.ticketType ?? session.ticketType ?? 'General Admission'}*\n🆔 Ticket ID: *${paidTicketId.slice(-8).toUpperCase() || 'N/A'}*\n\n📲 View & save your QR code:\n${paidAppUrl}/ticket/${paidTicketId}\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`;
                     } else if (orderStatus === 'failed') {
                         await resetSession(from);
@@ -590,8 +646,9 @@ async function issueFreeTicketWA(params: {
     ticketType: string;
     hi: string;
     sig: string;
+    guestName?: string;
 }): Promise<{ responseMessage: string }> {
-    const { from, eventId, eventName, ticketType, hi, sig } = params;
+    const { from, eventId, eventName, ticketType, hi, sig, guestName } = params;
     const db = getAdminDb();
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret || jwtSecret.length < 32) {
@@ -634,6 +691,7 @@ async function issueFreeTicketWA(params: {
                 orderId, eventId, eventName, userId: waUserId, ticketType, status: 'valid',
                 date: ed.date ?? '', time: ed.time ?? '', location: ed.location ?? '',
                 pricePaid: 0, purchaseDate: now, channel: 'whatsapp', waFrom: from, qrCode: qrCodeDataUrl,
+                guestName: guestName || null,
             });
         });
     } catch (err: unknown) {
@@ -651,7 +709,7 @@ async function issueFreeTicketWA(params: {
 
     await setSession(from, { step: 'browsing' });
 
-    const appUrl = (process.env.APP_URL ?? 'https://eventa.africa').replace(/\/$/, '');
+    const appUrl = (process.env.APP_URL ?? 'https://www.eventa.africa').replace(/\/$/, '');
     const ticketUrl = `${appUrl}/ticket/${ticketRef.id}`;
     return {
         responseMessage: `${hi}\n\n✅ *Your free ticket is confirmed!*\n\n🎟️ *${eventName}*\nType: *${ticketType}*\n🆔 Ticket ID: *${ticketRef.id.slice(-8).toUpperCase()}*\n\n📲 View & save your QR code:\n${ticketUrl}\n\nShow your QR code at the entrance. See you there! 🎉\n\nReply *menu* to go back to the main menu.${sig}`,
