@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
-import { validateTwilioSignature, sendWhatsAppContentMessage } from "@/lib/twilio";
+import { validateTwilioSignature, sendWhatsAppContentMessage, sendWhatsAppMediaMessage } from "@/lib/twilio";
 import jwt from "jsonwebtoken";
 import QRCode from "qrcode";
 import crypto from "crypto";
@@ -11,7 +11,7 @@ const PAGE_SIZE = 10;
 // Twilio Content SIDs
 const SID_WELCOME_MENU = 'HXb3c0ecd04381a81835fefe47ad58cb80';
 const SID_EVENT_LIST = 'HX93ad5545279677b24b9e4dd1475780f7';
-const SID_EVENT_CARD = 'HX09e734c41e8fde190fb1deb80f4f0619';
+const SID_EVENT_CARD = 'HX3a67d351a8138dc9a1b81962d0baf9a9';
 const SID_PAYMENT_PENDING = 'HXd857671a663ae84483b94902ea366c12';
 const SID_TICKET_TIER = 'HXe49c578fa0af7ceeb96957eea295e5a8';
 
@@ -203,8 +203,7 @@ export async function POST(req: NextRequest) {
                     responseMessage = `${hi}\n\nSorry, that event is no longer available.${sig}`;
                 } else {
                     await setSession(from, { ...session, step: 'event_preview', pendingEventId: ev.id });
-                    templateSid = SID_EVENT_CARD;
-                    
+
                     let details = `*${ev.title}*\n\n`;
                     if (ev.date) details += `📅 ${ev.date}\n`;
                     if (ev.time) details += `⏰ ${ev.time}\n`;
@@ -217,8 +216,18 @@ export async function POST(req: NextRequest) {
                         details += `\n${ev.description}`;
                     }
 
+                    // Message 1: send the event flyer image on its own
+                    const flyerUrl = ev.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80';
+                    try {
+                        await sendWhatsAppMediaMessage(from, flyerUrl);
+                    } catch (imgErr) {
+                        console.warn('[WhatsApp] Could not send flyer image:', imgErr);
+                    }
+
+                    // Message 2: rich details card with buttons (sent via sendFinalResponse below)
+                    templateSid = SID_EVENT_CARD;
                     templateVars = {
-                        '1': ev.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
+                        '1': flyerUrl,
                         '2': details.slice(0, 1000)
                     };
                 }

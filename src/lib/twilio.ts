@@ -17,6 +17,12 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
     await client.messages.create({ from: fromNumber, to, body });
 }
 
+/** Send a proactive WhatsApp image message (no caption) — used as the first of a two-message event preview. */
+export async function sendWhatsAppMediaMessage(to: string, mediaUrl: string): Promise<void> {
+    const client = getClient();
+    await client.messages.create({ from: fromNumber, to, mediaUrl: [mediaUrl] });
+}
+
 export async function sendWhatsAppContentMessage(to: string, contentSid: string, contentVariables: Record<string, string>): Promise<void> {
     const client = getClient();
     await client.messages.create({
