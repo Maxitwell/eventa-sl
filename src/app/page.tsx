@@ -11,7 +11,6 @@ import { Search, Filter, Calendar as CalendarIcon, ArrowRight, MapPin } from "lu
 import Image from "next/image";
 import Link from "next/link";
 import { getPublishedEventsPaginated, isEventUpcoming, EventEntity } from "@/lib/db";
-import { motion, AnimatePresence } from "framer-motion";
 
 function Discover() {
   const { currentUser, isLoggedIn } = useAuth();
@@ -28,7 +27,6 @@ function Discover() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [heroIndex, setHeroIndex] = useState(0);
 
   const fetchInitialEvents = async () => {
     setIsLoadingEvents(true);
@@ -50,11 +48,6 @@ function Discover() {
 
   useEffect(() => {
     fetchInitialEvents();
-  }, []);
-
-  useEffect(() => {
-    const t = setInterval(() => setHeroIndex(i => (i + 1) % 2), 4500);
-    return () => clearInterval(t);
   }, []);
 
   const loadMoreEvents = async () => {
@@ -117,166 +110,258 @@ function Discover() {
     return matchesSearch && matchesCategory && matchesPrice && matchesDate;
   });
 
-  const featuredEvent = dbEvents.find(e => e.featured) ?? dbEvents[0] ?? null;
   const firstName = currentUser?.name?.split(" ")[0] ?? "you";
-
-  const heroTexts = [
-    { pre: "This weekend,", emphasis: "Freetown moves.", useSerif: true },
-    { pre: "The Heartbeat of", emphasis: "Sierra Leone", useSerif: false },
-  ];
-  const current = heroTexts[heroIndex];
 
   return (
     <>
-      {/* ── Hero ───────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-100 py-12 md:py-16 lg:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+      <style jsx global>{`
+        .page {
+          height: 100dvh; min-height: 100dvh;
+          display: flex; flex-direction: column;
+          position: relative; overflow: hidden;
+        }
+        .hero {
+          flex: 1 1 auto;
+          position: relative;
+          display: flex; flex-direction: column;
+          overflow: hidden;
+          background:
+            radial-gradient(60% 70% at 70% 30%, rgba(255, 138, 76, .6), transparent 60%),
+            radial-gradient(70% 80% at 30% 70%, rgba(255, 120, 40, .55), transparent 65%),
+            linear-gradient(180deg, #FF8A4C 0%, #EA580C 35%, #C2410C 75%, #9A3412 100%);
+          z-index: 1;
+        }
+        .hero::before {
+          content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+          background-image:
+            radial-gradient(28% 60% at 65% 55%, rgba(255, 255, 255, .06), transparent 70%),
+            radial-gradient(20% 30% at 60% 30%, rgba(255, 220, 180, .14), transparent 70%),
+            radial-gradient(35% 50% at 70% 80%, rgba(255, 160, 90, .16), transparent 70%);
+          mix-blend-mode: screen;
+        }
+        .hero::after {
+          content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+          background:
+            linear-gradient(180deg, transparent 0%, transparent 95%, rgba(0, 0, 0, 0.05) 100%);
+        }
+        .grain {
+          position: absolute; inset: 0; z-index: 0; pointer-events: none;
+          opacity: .12; mix-blend-mode: overlay;
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+        }
+        .hero-body {
+          position: relative; z-index: 20; flex: 1;
+          display: flex; flex-direction: column; justify-content: flex-end;
+          padding: 64px 22px 26px;
+          max-width: 1280px; width: 100%; margin: 0 auto;
+        }
+        .pill {
+          align-self: flex-start;
+          display: inline-flex; align-items: center; gap: 9px;
+          padding: 8px 14px 8px 12px; border-radius: 999px;
+          background: rgba(20, 8, 4, .45);
+          border: 1px solid rgba(255, 255, 255, .18);
+          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+          color: #fff; font-size: 13px; font-weight: 500; letter-spacing: -.005em;
+          margin-bottom: auto; margin-top: 100px;
+          transition: border-color .2s, transform .2s;
+        }
+        .pill:hover { border-color: rgba(255, 138, 76, .55); transform: translateY(-1px) }
+        .pill .live-dot {
+          width: 7px; height: 7px; border-radius: 50%; background: #22C55E;
+          box-shadow: 0 0 0 0 rgba(34, 197, 94, .65);
+          animation: pulse 1.8s infinite;
+        }
+        .pill .count { font-weight: 700; color: #FF8A4C }
+        .pill svg { color: #FF8A4C; margin-left: 2px }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .65) }
+          70% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0) }
+          100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0) }
+        }
+        .headline-stack {
+          display: grid;
+          margin-bottom: 18px;
+        }
+        .headline-stack > h1 {
+          grid-column: 1; grid-row: 1;
+          font-family: var(--font-inter-tight), sans-serif;
+          font-weight: 800;
+          font-size: clamp(34px, 8.4vw, 80px);
+          line-height: 1.02;
+          letter-spacing: -.035em;
+          color: #fff;
+          max-width: 18ch;
+          opacity: 0;
+          will-change: opacity, transform;
+          animation: rotateHead 8s cubic-bezier(.22, .7, .2, 1) infinite;
+        }
+        .headline-stack > h1:nth-child(2) { animation-delay: -4s }
+        .headline-stack > h1 .accent {
+          display: inline-block;
+          background: linear-gradient(180deg, #FFFFFF 0%, #FFE3CF 40%, #FF8A4C 100%);
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          font-style: italic;
+          padding-right: 0.15em;
+          filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+          animation: heartbeat 1.8s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+        }
+        @keyframes heartbeat {
+          0% { transform: scale(1); filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45)) brightness(1); }
+          14% { transform: scale(1.08); filter: drop-shadow(0 4px 15px rgba(255, 138, 76, 0.4)) brightness(1.15); }
+          28% { transform: scale(1); filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45)) brightness(1); }
+          42% { transform: scale(1.06); filter: drop-shadow(0 4px 14px rgba(255, 138, 76, 0.3)) brightness(1.1); }
+          70% { transform: scale(1); filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45)) brightness(1); }
+        }
+        @keyframes rotateHead {
+          0% { opacity: 0; transform: translateY(-26px); }
+          10% { opacity: 1; transform: translateY(0); }
+          50% { opacity: 1; transform: translateX(0); }
+          62% { opacity: 0; transform: translateX(60px); }
+          100% { opacity: 0; transform: translateX(60px); }
+        }
+        .lede {
+          font-size: clamp(15px, 3.9vw, 19px);
+          line-height: 1.45;
+          color: rgba(255, 255, 255, .86);
+          max-width: 46ch;
+          margin-bottom: 24px;
+          letter-spacing: -.005em;
+        }
+        .ctas { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; align-items: flex-start }
+        .cta {
+          display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+          padding: 14px 26px; border-radius: 10px;
+          font-family: var(--font-inter-tight), sans-serif; font-weight: 600; font-size: 16px;
+          letter-spacing: -.01em;
+          transition: transform .2s, background .2s, border-color .2s;
+          min-width: 200px;
+        }
+        .cta-primary { background: #fff; color: #0A0402 }
+        .cta-primary:hover { transform: translateY(-1px) }
+        .cta-ghost {
+          background: transparent; color: #fff;
+          border: 1px solid rgba(255, 255, 255, .45);
+        }
+        .cta-ghost:hover { border-color: #fff; background: rgba(255, 255, 255, .06) }
+        .cta-ghost .wa { color: #25D366 }
+        .trust {
+          position: relative; z-index: 2;
+          padding: 0 22px 24px;
+          max-width: 1280px; width: 100%; margin: 0 auto;
+          flex: 0 0 auto;
+        }
+        .trust-line {
+          text-align: center;
+          color: rgba(255, 255, 255, .78);
+          font-size: 13px; line-height: 1.45; letter-spacing: -.005em;
+          max-width: 520px; margin-left: auto; margin-right: auto;
+        }
+        .trust-line b { color: #fff; font-weight: 600 }
+        .fade { opacity: 0; transform: translateY(10px); animation: rise .9s cubic-bezier(.2, .7, .2, 1) forwards }
+        .d1 { animation-delay: .05s } .d2 { animation-delay: .16s } .d3 { animation-delay: .26s }
+        .d5 { animation-delay: .46s } .d6 { animation-delay: .56s } .d7 { animation-delay: .66s }
+        @keyframes rise { to { opacity: 1; transform: translateY(0) } }
 
-            {/* Left: text + CTAs */}
-            <div>
-              <div className="inline-flex items-center gap-2 bg-[#e8fff0] border border-[#b3ffd6] text-orange-600 text-xs font-bold px-4 py-2 rounded-full mb-8">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                {dbEvents.length > 0 ? `${dbEvents.length}+ ` : ""}EVENTS LIVE THIS WEEK
-              </div>
+        .hero-img {
+          position: absolute;
+          right: 0; top: 0; bottom: 0;
+          width: 100%; height: 100%;
+          object-fit: cover;
+          z-index: 1;
+          opacity: 0.35;
+          mask-image: linear-gradient(to top, black 50%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to top, black 50%, transparent 100%);
+        }
 
-              {/* Animated hero heading */}
-              <div className="h-28 sm:h-32 lg:h-36 relative overflow-hidden mb-4">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={heroIndex}
-                    initial={{ opacity: 0, y: 28 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -28 }}
-                    transition={{ duration: 0.55, ease: "easeInOut" }}
-                    className="absolute inset-0"
-                  >
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.08] tracking-tight">
-                      {current.pre}
-                      <br />
-                      {current.useSerif ? (
-                        <span style={{ fontFamily: "var(--font-playfair)", fontStyle: "italic" }}>
-                          {current.emphasis}
-                        </span>
-                      ) : (
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-500">{current.emphasis}</span>
-                      )}
-                    </h1>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+        @media (min-width: 1024px) {
+          .hero-img {
+            width: 55%;
+            opacity: 1;
+            mask-image: linear-gradient(to left, black 70%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to left, black 70%, transparent 100%);
+          }
+          .hero-body {
+            padding-right: 45%;
+          }
+        }
+        @media (min-width: 520px) {
+          .ctas { flex-direction: row; flex-wrap: wrap }
+          .cta { min-width: 0 }
+        }
+        @media (min-width: 768px) {
+          .ann { font-size: 14px; padding: 12px 24px }
+          nav.custom-nav { padding: 22px 36px }
+          .hero-body { padding: 0 36px 40px }
+          .trust { padding: 0 36px 32px }
+          .trust-line { font-size: 14px }
+        }
+        @media (min-width: 1024px) {
+          .hero-body { padding: 0 56px 56px }
+          .headline-stack > h1 { max-width: 18ch; letter-spacing: -.04em }
+          .trust { padding: 0 56px 40px }
+        }
+        @media (max-height: 700px) {
+          .headline-stack > h1 { font-size: clamp(28px, 6.8vw, 50px) }
+          .headline-stack { margin-bottom: 12px }
+          .lede { font-size: 14px; margin-bottom: 16px }
+          .cta { padding: 12px 22px; font-size: 15px }
+          .ctas { margin-bottom: 20px }
+          .trust-line { font-size: 12px }
+        }
+      `}</style>
 
-              <p className="text-gray-500 text-lg mb-8 max-w-md leading-relaxed">
-                Discover the hottest concerts, tech meetups, and beach festivals happening across the country this weekend on Eventa.
-              </p>
+      <div className="page">
+        {/* Top announcement bar */}
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <a
-                  href="#events-section"
-                  className="bg-orange-500 text-white px-7 py-3.5 rounded-full font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2 shadow-md shadow-orange-500/20"
-                >
-                  Browse all events <ArrowRight size={16} />
-                </a>
-                <a
-                  href="https://wa.me/12184148971"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="border-2 border-[#25d366] text-[#128c4e] px-7 py-3.5 rounded-full font-bold hover:bg-[#e8fff0] transition flex items-center justify-center gap-2"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                  </svg>
-                  Book on WhatsApp
-                </a>
-              </div>
+        {/* Hero */}
+        <section className="hero">
+          <div className="grain"></div>
+          <img 
+            src="/hero-lady.png" 
+            alt="Happy lady at party" 
+            className="hero-img fade"
+          />
+
+
+          {/* Hero content */}
+          <div className="hero-body">
+            <a className="pill fade d3" href="#events-section">
+              <span className="live-dot"></span>
+              <span className="count" id="event-count">{dbEvents.length > 0 ? dbEvents.length : 23}</span> events live this week
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+            </a>
+
+            {/* Headline rotator: fades in from top, fades out to right */}
+            <div className="headline-stack">
+              <h1>The ticketing platform to power your best events.</h1>
+              <h1>The <span className="accent">Heartbeat</span> of Sierra Leone.</h1>
             </div>
 
-            {/* Right: Featured event card */}
-            {!isLoadingEvents && featuredEvent ? (
-              <div
-                onClick={() => openTicketModal(featuredEvent)}
-                className="bg-gray-900 rounded-3xl overflow-hidden shadow-2xl cursor-pointer group relative"
-              >
-                <div className="absolute top-4 right-4 z-20">
-                  <span className="bg-white text-gray-900 text-[10px] font-black px-3 py-1.5 rounded-md uppercase tracking-widest">
-                    FEATURED
-                  </span>
-                </div>
+            <p className="lede fade d5">
+              Discover the hottest concerts, tech meetups, and beach festivals
+              happening across the country this weekend on Eventa.
+            </p>
 
-                {/* Image + overlay */}
-                <div className="relative h-44 sm:h-52 overflow-hidden">
-                  <div className="absolute top-4 right-4 w-28 h-28 bg-orange-500 rounded-full opacity-70 z-0 blur-sm" />
-                  <Image
-                    src={featuredEvent.image}
-                    alt={featuredEvent.title}
-                    fill
-                    className="object-cover opacity-50 mix-blend-luminosity group-hover:scale-105 transition duration-700 z-10"
-                    sizes="(max-width: 1024px) 100vw, 600px"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent z-20" />
-                  <div className="absolute bottom-0 left-0 p-4 z-30">
-                    <p className="text-orange-300 text-[11px] italic mb-0.5">an evening with</p>
-                    <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight leading-none">
-                      {featuredEvent.title}
-                    </h2>
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div className="p-4 sm:p-5">
-                  <div className="flex flex-wrap items-center gap-1 mb-2">
-                    {featuredEvent.categories?.map((c, i) => (
-                      <span key={c}>
-                        <span className="text-orange-400 text-[10px] font-black uppercase tracking-widest">{c}</span>
-                        {i < (featuredEvent.categories?.length ?? 0) - 1 && (
-                          <span className="text-gray-600 text-[10px] ml-1">·</span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-gray-400 text-xs mb-4">
-                    <MapPin size={11} className="inline mr-1" />
-                    {featuredEvent.location}
-                    {featuredEvent.date ? ` · ${featuredEvent.date}` : ""}
-                    {featuredEvent.time ? ` · ${featuredEvent.time}` : ""}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-500 text-[10px] uppercase tracking-wider font-bold mb-0.5">From</p>
-                      <p className="text-xl font-black text-white">
-                        {featuredEvent.price > 0
-                          ? `NLe ${featuredEvent.price.toLocaleString()}`
-                          : "Free"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); openTicketModal(featuredEvent); }}
-                      className="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-orange-600 transition flex items-center gap-1.5 text-sm"
-                    >
-                      Get tickets <ArrowRight size={13} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : isLoadingEvents ? (
-              <div className="hidden lg:block bg-gray-100 rounded-3xl h-[26rem] animate-pulse" />
-            ) : (
-              <div className="hidden lg:flex items-center justify-center h-96 bg-gradient-to-br from-orange-500 to-pink-600 rounded-3xl">
-                <div className="text-center text-white p-8">
-                  <p className="text-6xl mb-4">🎟️</p>
-                  <p className="text-2xl font-black">Events Coming Soon</p>
-                  <p className="text-orange-100 mt-2">Be the first to know!</p>
-                </div>
-              </div>
-            )}
+            <div className="ctas fade d6">
+              <a className="cta cta-primary" href="#events-section">Browse events</a>
+              <a className="cta cta-ghost" href="https://wa.me/12184148971" target="_blank" rel="noopener noreferrer">
+                <svg className="wa" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.05 4.91A10 10 0 0 0 4.16 18.5L3 22l3.6-1.13A10 10 0 1 0 19.05 4.91Zm-7.04 15.4a8.3 8.3 0 0 1-4.23-1.16l-.3-.18-2.13.67.68-2.07-.2-.32a8.3 8.3 0 1 1 6.18 3.06Zm4.55-6.22c-.25-.13-1.47-.72-1.7-.8-.23-.09-.4-.13-.56.13-.17.25-.65.8-.8.97-.14.16-.3.18-.55.06a6.78 6.78 0 0 1-3.4-2.97c-.26-.44.26-.41.74-1.36a.46.46 0 0 0-.02-.43c-.06-.13-.56-1.36-.77-1.86-.2-.49-.41-.42-.56-.43h-.48a.92.92 0 0 0-.67.31 2.8 2.8 0 0 0-.87 2.07c0 1.22.89 2.4 1.01 2.57.13.16 1.75 2.66 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.55.1.47-.07 1.46-.6 1.66-1.17.21-.58.21-1.07.14-1.17-.06-.1-.23-.16-.49-.28Z" /></svg>
+                Book on WhatsApp
+              </a>
+            </div>
           </div>
-        </div>
+
+          {/* Trust line */}
+          <div className="trust fade d7">
+            <p className="trust-line"><b>Trusted by 700+ subscribers</b> — organisers, promoters, venues and creators</p>
+            <p className="trust-line mt-1 opacity-70">The first ticketing platform native to Sierra Leone — pay with Orange Money or Afrimoney.</p>
+          </div>
+        </section>
       </div>
 
       {/* ── Events Section ──────────────────────────────────── */}
       <div id="events-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pt-12">
-
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-6 gap-2">
           <div>
             {isLoggedIn && currentUser ? (
@@ -304,7 +389,6 @@ function Discover() {
           </Link>
         </div>
 
-        {/* Filters */}
         <div className="flex gap-2 mb-6">
           <div className="flex gap-2 flex-1">
             <div className="relative flex-1 sm:flex-none">
@@ -334,7 +418,6 @@ function Discover() {
           </div>
         </div>
 
-        {/* Category pills */}
         <div className="relative mb-8">
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
             {categories.map(cat => (
@@ -354,7 +437,6 @@ function Discover() {
           <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none" />
         </div>
 
-        {/* Events grid — 3-column */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
           {isLoadingEvents ? (
             Array.from({ length: 6 }).map((_, i) => <EventCardSkeleton key={`skeleton-${i}`} />)
@@ -370,7 +452,6 @@ function Discover() {
           )}
         </div>
 
-        {/* Load More */}
         {hasMore && filteredEvents.length > 0 && (
           <div className="flex justify-center mt-8 mb-12">
             <button

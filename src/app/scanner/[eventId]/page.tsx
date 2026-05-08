@@ -21,6 +21,7 @@ type LocalTicket = {
     status: TicketStatus;
     guestName?: string;
     guestEmail?: string;
+    waFrom?: string;
     offlineAdmitted?: boolean; // admitted locally, sync pending
 };
 
@@ -558,7 +559,8 @@ export default function ScannerTerminal() {
 
     const filteredTickets = tickets.filter((t) => {
         const q = searchQuery.toLowerCase();
-        const ms = !q || (t.guestName || "").toLowerCase().includes(q) || (t.guestEmail || "").toLowerCase().includes(q);
+        const displayName = t.guestName || t.waFrom?.replace('whatsapp:', '') || '';
+        const ms = !q || displayName.toLowerCase().includes(q) || (t.guestEmail || "").toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || t.id.slice(-8).toLowerCase().includes(q);
         const mv = filterVIP ? (t.ticketType || "").toLowerCase().includes("vip") : true;
         return ms && mv;
     });
@@ -829,7 +831,9 @@ export default function ScannerTerminal() {
                                             <User size={18} />
                                         </div>
                                         <div className="min-w-0">
-                                            <h4 className="text-white font-medium text-sm line-clamp-1">{ticket.guestName || "Guest Entry"}</h4>
+                                            <h4 className="text-white font-medium text-sm line-clamp-1">
+                                                {ticket.guestName || ticket.waFrom?.replace('whatsapp:', '') || "Guest Entry"}
+                                            </h4>
                                             <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
                                                 <span className={ticket.ticketType?.toLowerCase().includes("vip") ? "text-orange-400 font-semibold" : ""}>
                                                     {ticket.ticketType || "Standard"}
@@ -840,6 +844,7 @@ export default function ScannerTerminal() {
                                                 </span>
                                                 {ticket.offlineAdmitted && <span className="text-yellow-500">· unsynced</span>}
                                             </p>
+                                            <p className="text-[10px] font-mono text-gray-600 mt-0.5">#{ticket.id.slice(-8).toUpperCase()}</p>
                                         </div>
                                     </div>
                                     {ticket.status === "valid" && (

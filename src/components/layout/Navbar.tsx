@@ -21,16 +21,18 @@ export function Navbar() {
     const router = useRouter();
     const { isLoggedIn, currentUser, logout } = useAuth();
     const menuRef = useRef<HTMLDivElement>(null);
+    const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setIsMobileMenuOpen(false);
-            }
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 20);
         };
-        if (isMobileMenuOpen) document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isMobileMenuOpen]);
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    const isHome = pathname === "/";
+    const isTransparent = isHome && !isScrolled;
 
     const handleNavSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,29 +62,41 @@ export function Navbar() {
     }
 
     if (pathname.startsWith("/scanner")) return null;
-
+    
     return (
-        <nav className="bg-white border-b border-gray-200 sticky top-0 z-50" ref={menuRef}>
+        <nav 
+            className={clsx(
+                "z-50 w-full transition-all duration-300",
+                isTransparent 
+                    ? "absolute top-0 bg-transparent border-transparent" 
+                    : "sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm"
+            )} 
+            ref={menuRef}
+        >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-16">
-                    {/* Logo + desktop nav links */}
-                    <div className="flex items-center">
+                <div className="flex justify-between h-16 items-center">
+                    {/* Left: Logo & Nav Links */}
+                    <div className="flex items-center gap-8">
                         <Link href="/" className="flex items-center gap-2">
-                            <img src="/desktop-logo.svg" alt="Eventa Logo" className="h-10 w-auto object-contain" />
-                            <span className="text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full tracking-wide">BETA</span>
+                            <img 
+                                src="/desktop-logo.svg" 
+                                alt="Eventa" 
+                                className={clsx("h-8 w-auto transition-all", isTransparent && "brightness-0 invert")} 
+                            />
                         </Link>
-                        <div className="hidden md:flex ml-10 space-x-8">
-                            {navLinks.map(link => {
+
+                        <div className="hidden md:flex items-center gap-6">
+                            {navLinks.map((link) => {
                                 const isActive = pathname === link.href;
                                 return (
                                     <Link
                                         key={link.name}
                                         href={link.href}
                                         className={clsx(
-                                            "inline-flex items-center px-1 pt-1 text-sm font-medium transition-all",
-                                            isActive
-                                                ? "border-b-2 border-orange-500 text-gray-900"
-                                                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                            "inline-flex items-center px-1 pt-1 text-sm font-medium transition-all border-b-2 h-16 -mb-px",
+                                            isActive 
+                                                ? (isTransparent ? "border-white text-white" : "border-orange-500 text-gray-900")
+                                                : (isTransparent ? "border-transparent text-white/80 hover:text-white" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
                                         )}
                                     >
                                         {link.name}
@@ -92,64 +106,85 @@ export function Navbar() {
                         </div>
                     </div>
 
-                    {/* Right: search + auth */}
-                    <div className="flex items-center space-x-4">
-                        {pathname === "/" && (
-                            <form onSubmit={handleNavSearch} className="relative hidden sm:block">
-                                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                                <input
-                                    type="text"
+                    {/* Right: Search & Auth */}
+                    <div className="flex items-center gap-4 sm:gap-6">
+                        {/* Search Bar */}
+                        <div className="relative hidden lg:block">
+                            <form onSubmit={handleNavSearch}>
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search className={clsx("h-4 w-4", isTransparent ? "text-white/60" : "text-gray-400")} />
+                                </div>
+                                <input 
+                                    type="text" 
                                     value={navSearch}
-                                    onChange={e => setNavSearch(e.target.value)}
+                                    onChange={(e) => setNavSearch(e.target.value)}
+                                    className={clsx(
+                                        "pl-10 pr-4 py-2 border text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-64 transition-all rounded-[10px]",
+                                        isTransparent 
+                                            ? "bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white/20" 
+                                            : "bg-gray-50 border-gray-200 text-gray-900 focus:bg-white"
+                                    )} 
                                     placeholder="Search events in Sierra Leone..."
-                                    className="pl-10 pr-4 py-2 border border-gray-200 rounded-full bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white w-64 transition-all"
                                 />
                             </form>
-                        )}
+                        </div>
 
-                        {!isLoggedIn ? (
-                            <div className="hidden md:flex items-center gap-4">
-                                <Link href="/login" className="text-sm font-bold text-gray-700 hover:text-orange-600 transition">
-                                    Sign In
-                                </Link>
-                                <Link href="/signup" className="bg-gray-900 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-gray-800 transition shadow-sm">
-                                    Get Started
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="hidden md:flex items-center gap-3">
-                                {currentUser?.role === "organizer" && (
-                                    <Link
-                                        href="/dashboard"
-                                        className="bg-orange-50 text-orange-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-orange-100 transition border border-orange-200 flex items-center gap-2"
+                        {/* Auth Buttons */}
+                        <div className="flex items-center gap-4 sm:gap-6">
+                            {!isLoggedIn ? (
+                                <>
+                                    <Link 
+                                        href="/login" 
+                                        className={clsx("text-sm font-bold transition", isTransparent ? "text-white hover:text-white/80" : "text-gray-700 hover:text-orange-600")}
                                     >
-                                        <BarChart size={16} /> Dashboard
+                                        Sign In
                                     </Link>
-                                )}
-                                <Link
-                                    href="/profile"
-                                    className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-sm hover:bg-gray-700 transition"
-                                    title={currentUser?.name}
-                                >
-                                    {getInitials(currentUser?.name)}
-                                </Link>
-                            </div>
-                        )}
+                                    <Link 
+                                        href="/signup" 
+                                        className={clsx(
+                                            "hidden sm:block px-6 py-3 rounded-[10px] text-base font-semibold transition shadow-sm font-inter-tight",
+                                            isTransparent 
+                                                ? "bg-white text-[#0A0402] hover:bg-white/90" 
+                                                : "bg-gray-900 text-white hover:bg-gray-800"
+                                        )}
+                                    >
+                                        Get Started
+                                    </Link>
+                                </>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    {currentUser?.role === "organizer" && (
+                                        <Link
+                                            href="/dashboard"
+                                            className={clsx(
+                                                "hidden sm:flex px-4 py-2 rounded-full text-sm font-bold transition border items-center gap-2",
+                                                isTransparent 
+                                                    ? "bg-white/10 text-white border-white/20 hover:bg-white/20" 
+                                                    : "border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
+                                            )}
+                                        >
+                                            <BarChart size={16} /> Dashboard
+                                        </Link>
+                                    )}
+                                    <Link
+                                        href="/profile"
+                                        className={clsx(
+                                            "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition",
+                                            isTransparent ? "bg-white text-gray-900 hover:bg-gray-100" : "bg-gray-900 text-white hover:bg-gray-700"
+                                        )}
+                                        title={currentUser?.name}
+                                    >
+                                        {getInitials(currentUser?.name)}
+                                    </Link>
+                                </div>
+                            )}
 
-                        {/* Mobile menu toggle */}
-                        <div className="flex items-center md:hidden ml-4">
+                            {/* Mobile menu button */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                aria-expanded={isMobileMenuOpen}
-                                aria-controls="mobile-menu"
-                                className="text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500 p-2 rounded-md"
+                                className={clsx("md:hidden p-2 rounded-md transition-colors", isTransparent ? "text-white hover:bg-white/10" : "text-gray-700 hover:bg-gray-100")}
                             >
-                                <span className="sr-only">{isMobileMenuOpen ? "Close" : "Open"} main menu</span>
-                                {isMobileMenuOpen ? (
-                                    <X className="block h-6 w-6" aria-hidden="true" />
-                                ) : (
-                                    <Menu className="block h-6 w-6" aria-hidden="true" />
-                                )}
+                                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                             </button>
                         </div>
                     </div>
@@ -158,20 +193,18 @@ export function Navbar() {
 
             {/* Mobile Menu Panel */}
             {isMobileMenuOpen && (
-                <div id="mobile-menu" className="md:hidden bg-white border-t border-gray-200 absolute w-full shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
+                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
                     <div className="px-4 pt-4 pb-3 space-y-1">
-                        {pathname === "/" && (
-                            <form onSubmit={handleNavSearch} className="relative mb-4">
-                                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                                <input
-                                    type="text"
-                                    value={navSearch}
-                                    onChange={e => setNavSearch(e.target.value)}
-                                    placeholder="Search events..."
-                                    className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-full bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all"
-                                />
-                            </form>
-                        )}
+                        <form onSubmit={handleNavSearch} className="relative mb-4">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                            <input
+                                type="text"
+                                value={navSearch}
+                                onChange={e => setNavSearch(e.target.value)}
+                                placeholder="Search events..."
+                                className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-[10px] bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                            />
+                        </form>
                         {navLinks.map(link => {
                             const isActive = pathname === link.href;
                             return (
@@ -183,50 +216,36 @@ export function Navbar() {
                                         "block px-3 py-2 rounded-md text-base font-medium",
                                         isActive
                                             ? "bg-orange-50 text-orange-600"
-                                            : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                            : "text-gray-700 hover:bg-gray-50"
                                     )}
                                 >
                                     {link.name}
                                 </Link>
                             );
                         })}
-                        {isLoggedIn && currentUser?.role === "organizer" && (
-                            <Link
-                                href="/dashboard"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={clsx(
-                                    "block px-3 py-2 rounded-md text-base font-medium",
-                                    pathname === "/dashboard"
-                                        ? "bg-orange-50 text-orange-600"
-                                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                                )}
-                            >
-                                Dashboard
-                            </Link>
-                        )}
                     </div>
 
-                    <div className="pt-4 pb-4 border-t border-gray-200">
+                    <div className="pt-4 pb-6 border-t border-gray-100 px-4">
                         {!isLoggedIn ? (
-                            <div className="px-5 flex flex-col gap-3">
+                            <div className="flex flex-col gap-3">
                                 <Link
                                     href="/login"
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className="w-full text-center text-sm font-bold text-gray-700 hover:text-orange-600 transition py-2"
+                                    className="w-full text-center text-sm font-bold text-gray-700 py-2"
                                 >
                                     Sign In
                                 </Link>
                                 <Link
                                     href="/signup"
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className="w-full text-center bg-gray-900 text-white px-4 py-3 rounded-full text-sm font-bold hover:bg-gray-800 transition shadow-sm"
+                                    className="w-full text-center bg-gray-900 text-white px-4 py-3 rounded-[10px] text-sm font-bold shadow-sm"
                                 >
                                     Get Started
                                 </Link>
                             </div>
                         ) : (
-                            <div className="px-5 flex flex-col gap-4">
-                                <div className="flex items-center gap-3 mb-2">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-sm">
                                         {getInitials(currentUser?.name)}
                                     </div>
@@ -235,19 +254,21 @@ export function Navbar() {
                                         <div className="text-sm font-medium text-gray-500">{currentUser?.email}</div>
                                     </div>
                                 </div>
-                                <Link
-                                    href="/profile"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                                >
-                                    Profile
-                                </Link>
-                                <button
-                                    onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}
-                                    className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
-                                >
-                                    Log Out
-                                </button>
+                                <div className="space-y-1">
+                                    <Link
+                                        href="/profile"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Profile
+                                    </Link>
+                                    <button
+                                        onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}
+                                        className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
+                                    >
+                                        Log Out
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
