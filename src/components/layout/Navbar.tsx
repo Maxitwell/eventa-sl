@@ -255,6 +255,15 @@ export function Navbar() {
                                     </div>
                                 </div>
                                 <div className="space-y-1">
+                                    {currentUser?.role === "organizer" && (
+                                        <Link
+                                            href="/dashboard"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-bold text-orange-600 bg-orange-50 hover:bg-orange-100"
+                                        >
+                                            <BarChart size={18} /> Dashboard
+                                        </Link>
+                                    )}
                                     <Link
                                         href="/profile"
                                         onClick={() => setIsMobileMenuOpen(false)}
