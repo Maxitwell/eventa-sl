@@ -20,14 +20,7 @@ function norm(s: string): string {
     return s.trim().toLowerCase();
 }
 
-export async function POST(_request: Request) {
-    return NextResponse.json(
-        { error: 'Paid ticketing is not available yet. Eventa is in beta — only free events are supported right now.' },
-        { status: 503 }
-    );
-}
-
-export async function _POST(request: Request) {
+export async function POST(request: Request) {
     try {
         const adminDb = getAdminDb();
         const jwtSecret = process.env.JWT_SECRET;
