@@ -552,7 +552,7 @@ export async function POST(req: NextRequest) {
                     let pawapayOk = false;
                     try {
                         const pawapayPayload = {
-                            depositId, amount: String(currentPrice), currency: 'SLE', country: 'SLE', correspondent: 'ORANGE_SLE', payer: { type: 'MSISDN', address: { value: phone } }, statementDescription: `Eventa: ${String(session.eventName ?? '').slice(0, 22)}`, customerTimestamp: new Date().toISOString(), metadata: [{ fieldName: 'channel', fieldValue: 'whatsapp', isPII: false }, { fieldName: 'waFrom', fieldValue: from, isPII: true }],
+                            depositId, amount: String(currentPrice), currency: 'SLE', country: 'SLE', correspondent: 'ORANGE_SLE', payer: { type: 'MSISDN', address: { value: phone } }, statementDescription: `Eventa: ${String(session.eventName ?? '')}`.slice(0, 22), customerTimestamp: new Date().toISOString(), metadata: [{ fieldName: 'channel', fieldValue: 'whatsapp', isPII: false }, { fieldName: 'waFrom', fieldValue: from, isPII: true }],
                         };
 
                         console.log('[WhatsApp PawaPay] Calling:', PAWAPAY_API_BASE, '| depositId:', depositId, '| amount:', currentPrice, '| phone:', phone);
