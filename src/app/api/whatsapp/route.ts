@@ -486,7 +486,7 @@ export async function POST(req: NextRequest) {
                         console.error('[WhatsApp] Failed to re-validate price:', err);
                     }
 
-                    const depositId = `wa-${crypto.randomUUID()}`;
+                    const depositId = crypto.randomUUID();
                     const reservationsRef = db.collection('reservations');
                     const eventRef = db.collection('events').doc(eventId);
 
