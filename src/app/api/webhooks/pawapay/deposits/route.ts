@@ -117,7 +117,7 @@ export async function POST(request: Request) {
                 // WhatsApp confirmation (WhatsApp checkout)
                 if (data.channel === "whatsapp" && data.waFrom) {
                     const ticketId = docSnap.id.slice(-8).toUpperCase();
-                    const appUrl = (process.env.APP_URL ?? 'https://eventa.africa').replace(/\/$/, '');
+                    const appUrl = (process.env.APP_URL ?? 'https://www.eventa.africa').replace(/\/$/, '');
                     const ticketUrl = `${appUrl}/ticket/${docSnap.id}`;
                     const msg =
                         `✅ *Payment Confirmed!*\n\n` +
