@@ -117,8 +117,8 @@ export default function CreateEvent() {
     const [organizerName, setOrganizerName] = useState("");
     const [talents, setTalents] = useState<{ id: string; name: string; role: string }[]>([]);
 
-    // Ticketing State — locked to free during beta
-    const [isFreeEvent] = useState(true);
+    // Ticketing State
+    const [isFreeEvent, setIsFreeEvent] = useState(false);
     const [tickets, setTickets] = useState([
         { id: Date.now().toString(), name: "Regular Admission", quantity: 100, price: 0, isPrivate: false, description: "" }
     ]);
@@ -681,28 +681,28 @@ export default function CreateEvent() {
 
                     {/* Ticketing & Capacity */}
                     <div className="space-y-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
-                            <Ticket size={20} className="text-orange-500" /> Tickets
-                        </h3>
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <Ticket size={20} className="text-orange-500" /> Tickets
+                            </h3>
 
-                        {/* Beta: free events only */}
-                        <div className="w-full rounded-2xl p-5 border-2 border-orange-500 bg-orange-50">
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <p className="font-bold text-gray-900 text-base">Free Event</p>
-                                        <span className="text-xs font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">BETA</span>
-                                    </div>
-                                    <p className="text-sm text-gray-500">
-                                        Paid ticketing is coming soon. All events are free during the beta.
-                                    </p>
-                                </div>
-                                <div className="relative inline-flex items-center shrink-0">
-                                    <div className="w-12 h-6 rounded-full bg-orange-500">
-                                        <div className="absolute top-[2px] left-[26px] w-5 h-5 bg-white rounded-full shadow" />
-                                    </div>
-                                </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-gray-700">Is this a free event?</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={isFreeEvent}
+                                        onChange={(e) => setIsFreeEvent(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                                </label>
                             </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-blue-50 text-blue-600 p-3 rounded-xl text-sm border border-blue-200">
+                            <Info size={16} className="shrink-0" />
+                            An 8% transaction fee applies to all paid tickets.
                         </div>
 
                         {!isFreeEvent && (
