@@ -8,9 +8,11 @@ function timingSafeCompare(a: string, b: string): boolean {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+// PawaPay does not send a secret header — the secret is embedded in the callback URL
+// as a query parameter (?secret=<token>). This is the standard approach for providers
+// that don't support webhook signing headers.
 export function assertWebhookSecret(requestSecret: string | null): boolean {
   const expected = process.env.PAWAPAY_WEBHOOK_SECRET;
-  // Fix 1: always reject if the secret env var is not configured — open webhooks are a critical risk
   if (!expected) {
     console.error("[Webhook] PAWAPAY_WEBHOOK_SECRET is not set — rejecting all webhook calls until configured");
     return false;

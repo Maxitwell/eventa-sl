@@ -6,7 +6,8 @@ import { sendWhatsAppMessage } from '@/lib/twilio';
 
 export async function POST(request: Request) {
     try {
-        if (!assertWebhookSecret(request.headers.get("x-webhook-secret"))) {
+        const { searchParams } = new URL(request.url);
+        if (!assertWebhookSecret(searchParams.get("secret"))) {
             return NextResponse.json({ error: 'Unauthorized webhook' }, { status: 401 });
         }
 
