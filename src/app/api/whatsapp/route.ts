@@ -555,10 +555,17 @@ export async function POST(req: NextRequest) {
                             depositId, amount: String(currentPrice), currency: 'SLE', country: 'SLE', correspondent: 'ORANGE_SLE', payer: { type: 'MSISDN', address: { value: phone } }, statementDescription: `Eventa: ${String(session.eventName ?? '').slice(0, 22)}`, customerTimestamp: new Date().toISOString(), metadata: [{ fieldName: 'channel', fieldValue: 'whatsapp', isPII: false }, { fieldName: 'waFrom', fieldValue: from, isPII: true }],
                         };
 
+                        console.log('[WhatsApp PawaPay] Calling:', PAWAPAY_API_BASE, '| depositId:', depositId, '| amount:', currentPrice, '| phone:', phone);
                         const ppRes = await fetch(`${PAWAPAY_API_BASE}/deposits`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.PAWAPAY_API_KEY}` }, body: JSON.stringify(pawapayPayload),
                         });
+                        const ppBody = await ppRes.json().catch(() => null);
                         pawapayOk = ppRes.ok;
+                        if (!ppRes.ok) {
+                            console.error('[WhatsApp PawaPay] Failed:', ppRes.status, JSON.stringify(ppBody));
+                        } else {
+                            console.log('[WhatsApp PawaPay] Accepted:', JSON.stringify(ppBody));
+                        }
                     } catch (err) {
                         console.error('[WhatsApp PawaPay] fetch error:', err);
                     }
