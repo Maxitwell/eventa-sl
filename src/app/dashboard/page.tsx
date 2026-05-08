@@ -44,7 +44,6 @@ interface Attendee {
     guestPhone?: string;
     userId?: string;
     channel?: string;
-    waFrom?: string;
 }
 
 interface PayoutRecord {
@@ -271,8 +270,7 @@ export default function Dashboard() {
             (a.guestName ?? "").toLowerCase().includes(s) ||
             (a.ticketType ?? "").toLowerCase().includes(s) ||
             a.id.toLowerCase().includes(s) ||
-            (a.guestPhone ?? "").toLowerCase().includes(s) ||
-            (a.waFrom ?? "").toLowerCase().includes(s)
+            (a.guestPhone ?? "").toLowerCase().includes(s)
         );
     }, [attendees, attendeeSearch]);
 
@@ -669,7 +667,7 @@ export default function Dashboard() {
                                 onClick={() => downloadCSV(
                                     filteredAttendees.map((a) => ({
                                         ticket_id: a.id,
-                                        name: a.guestName || (a.channel === 'whatsapp' ? (a.waFrom?.replace('whatsapp:', '') || 'WhatsApp') : a.userId || ""),
+                                        name: a.guestName || (a.channel === 'whatsapp' ? `WhatsApp ${a.guestPhone || ''}` : a.userId || ""),
                                         email: a.guestEmail || "",
                                         phone: a.guestPhone || "",
                                         channel: a.channel || "web",
@@ -699,7 +697,7 @@ export default function Dashboard() {
                                     <div key={a.id} className="p-4 space-y-1.5">
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="font-medium text-gray-900 truncate">
-                                                {a.guestName || (a.channel === 'whatsapp' ? (a.waFrom?.replace('whatsapp:', '') || 'WhatsApp') : "—")}
+                                                {a.guestName || (a.channel === 'whatsapp' ? `WhatsApp` : "—")}
                                                 {a.channel === 'whatsapp' && <span className="ml-1.5 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">WA</span>}
                                             </span>
                                             <StatusPill status={a.status} />
@@ -738,7 +736,7 @@ export default function Dashboard() {
                                         {filteredAttendees.map((a) => (
                                             <tr key={a.id} className="hover:bg-gray-50/50">
                                                 <td className="px-6 py-4 font-medium text-gray-900">
-                                                    {a.guestName || (a.channel === 'whatsapp' ? (a.waFrom?.replace('whatsapp:', '') || 'WhatsApp') : '—')}
+                                                    {a.guestName || (a.channel === 'whatsapp' ? 'WhatsApp' : '—')}
                                                     {a.channel === 'whatsapp' && <span className="ml-1.5 text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded align-middle">WA</span>}
                                                 </td>
                                                 <td className="px-6 py-4 text-gray-500 text-xs">{a.guestEmail || "—"}</td>
