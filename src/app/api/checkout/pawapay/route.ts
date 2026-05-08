@@ -114,7 +114,7 @@ export async function POST(request: Request) {
         }
 
         // Fix 8: use crypto.randomUUID — unpredictable, no collision risk
-        const depositId = `evt-${crypto.randomUUID()}`;
+        const depositId = crypto.randomUUID();
 
         const correspondent = "ORANGE_SLE";
 
