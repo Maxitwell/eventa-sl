@@ -4,13 +4,17 @@ import { AuthProvider } from "@/store/AuthContext";
 import { CartProvider } from "@/store/CartContext";
 import { ToastProvider } from "@/components/shared/ToastProvider";
 import { ModalProvider } from "@/components/shared/ModalProvider";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <AuthProvider>
             <CartProvider>
                 <ToastProvider>
-                    <ModalProvider>{children}</ModalProvider>
+                    <ModalProvider>
+                        <AnalyticsTracker />
+                        {children}
+                    </ModalProvider>
                 </ToastProvider>
             </CartProvider>
         </AuthProvider>
