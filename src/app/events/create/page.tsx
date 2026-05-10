@@ -6,7 +6,7 @@ import { useToast } from "@/components/shared/ToastProvider";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Calendar, Clock, MapPin, Tag, Briefcase, Camera, Image as ImageIcon, X, Map, Users, Plus, Trash2, Ticket, Info, Wallet, Phone, Mail, MessageCircle, Instagram, Twitter, Globe, Facebook } from "lucide-react";
+import { Calendar, Clock, MapPin, Tag, Briefcase, Camera, Image as ImageIcon, X, Map, Users, Plus, Trash2, Ticket, Info, Wallet, Phone, Mail, MessageCircle, Instagram, Twitter, Globe, Facebook, ZoomIn, ZoomOut } from "lucide-react";
 import { auth, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper, { Area } from "react-easy-crop";
@@ -169,7 +169,26 @@ export default function CreateEvent() {
     const [showCropper, setShowCropper] = useState(false);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
+    const [aspect, setAspect] = useState(2 / 1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
+    const RATIOS = [
+        { label: "Wide 2:1", value: 2 / 1 },
+        { label: "Landscape 16:9", value: 16 / 9 },
+        { label: "Square 1:1", value: 1 / 1 },
+    ];
+
+    const detectBestRatio = (dataUrl: string): Promise<number> =>
+        new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const r = img.naturalWidth / img.naturalHeight;
+                if (r >= 1.8) resolve(2 / 1);
+                else if (r >= 1.2) resolve(16 / 9);
+                else resolve(1 / 1);
+            };
+            img.src = dataUrl;
+        });
 
     useEffect(() => {
         if (!isLoggedIn && typeof window !== "undefined") {
@@ -334,8 +353,13 @@ export default function CreateEvent() {
                 return;
             }
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setUploadedImage(reader.result as string);
+            reader.onloadend = async () => {
+                const dataUrl = reader.result as string;
+                const detectedRatio = await detectBestRatio(dataUrl);
+                setUploadedImage(dataUrl);
+                setAspect(detectedRatio);
+                setZoom(1);
+                setCrop({ x: 0, y: 0 });
                 setShowCropper(true);
             };
             reader.readAsDataURL(file);
@@ -452,7 +476,7 @@ export default function CreateEvent() {
 
                                 {imagePreview ? (
                                     <div className="absolute inset-0 w-full h-full">
-                                        <img src={imagePreview} alt="Event Preview" className="w-full h-full object-cover" />
+                                        <img src={imagePreview} alt="Event Preview" className="w-full h-full object-contain bg-gray-900" />
                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <div className="bg-white/90 px-4 py-2 rounded-full font-semibold text-gray-900 flex items-center gap-2">
                                                 <Camera size={18} /> Change Banner
@@ -466,11 +490,20 @@ export default function CreateEvent() {
                                         </div>
                                         <p className="font-bold text-gray-700">Upload Event Banner</p>
                                         <p className="text-xs mt-1 max-w-xs text-center">
-                                            Recommended size: 1920x1080px (16:9). Max 5MB.
+                                            Works with any image — square, portrait, or landscape. Max 5MB.
                                         </p>
                                     </div>
                                 )}
                             </label>
+                            {imagePreview && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCropper(true)}
+                                    className="mt-2 text-xs font-semibold text-orange-600 hover:underline"
+                                >
+                                    Crop & Adjust
+                                </button>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -937,43 +970,63 @@ export default function CreateEvent() {
             {/* Cropper Modal */}
             {showCropper && uploadedImage && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col h-[80vh]">
-                        <div className="p-4 border-b border-gray-100 flex items-center justify-between shadow-sm z-10 bg-white">
-                            <h3 className="font-bold text-gray-900">Crop Event Banner</h3>
+                    <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col" style={{ maxHeight: "90vh" }}>
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold text-gray-900">Position your banner</h3>
+                                <p className="text-xs text-gray-400 mt-0.5">Drag to reposition · Use slider to zoom</p>
+                            </div>
                             <button onClick={() => setShowCropper(false)} className="text-gray-400 hover:text-gray-600 transition">
                                 <X size={24} />
                             </button>
                         </div>
-                        <div className="flex-1 relative bg-gray-900">
+                        <div className="px-5 pt-4">
+                            <p className="text-xs text-gray-400 mb-2">Shape auto-detected · tap to override</p>
+                            <div className="flex items-center gap-2">
+                                {RATIOS.map((r) => (
+                                    <button
+                                        key={r.label}
+                                        type="button"
+                                        onClick={() => { setAspect(r.value); setZoom(1); setCrop({ x: 0, y: 0 }); }}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                            aspect === r.value
+                                                ? "bg-orange-500 text-white border-orange-500"
+                                                : "bg-white text-gray-600 border-gray-200 hover:border-orange-300"
+                                        }`}
+                                    >
+                                        {r.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="relative bg-gray-900 mx-5 my-4 rounded-xl overflow-hidden" style={{ height: "300px" }}>
                             <Cropper
                                 image={uploadedImage}
                                 crop={crop}
                                 zoom={zoom}
-                                aspect={16 / 9}
+                                aspect={aspect}
                                 onCropChange={setCrop}
                                 onCropComplete={onCropComplete}
                                 onZoomChange={setZoom}
                             />
                         </div>
-                        <div className="p-4 sm:p-6 bg-white border-t border-gray-100">
-                            <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Zoom</label>
+                        <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+                            <div className="flex items-center gap-3 mb-4">
+                                <ZoomOut size={16} className="text-gray-400 shrink-0" />
                                 <input
                                     type="range"
                                     value={zoom}
                                     min={1}
                                     max={3}
-                                    step={0.1}
-                                    aria-labelledby="Zoom"
-                                    onChange={(e) => {
-                                        setZoom(Number(e.target.value))
-                                    }}
-                                    className="w-full accent-orange-500 cursor-pointer"
+                                    step={0.01}
+                                    onChange={(e) => setZoom(Number(e.target.value))}
+                                    className="flex-1 accent-orange-500 cursor-pointer"
                                 />
+                                <ZoomIn size={16} className="text-gray-400 shrink-0" />
                             </div>
                             <div className="flex justify-end gap-3">
                                 <Button variant="outline" onClick={() => setShowCropper(false)}>Cancel</Button>
-                                <Button onClick={handleCropImage}>Crop & Save</Button>
+                                <Button onClick={handleCropImage}>Save Banner</Button>
                             </div>
                         </div>
                     </div>

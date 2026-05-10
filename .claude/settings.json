@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat vercel.json)",
+      "Bash(cat .vercel/project.json)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('Next:', p.dependencies.next, 'React:', p.dependencies.react\\)\")",
+      "Bash(npx next *)",
+      "WebFetch(domain:eventa.africa)"
+    ]
+  }
+}
