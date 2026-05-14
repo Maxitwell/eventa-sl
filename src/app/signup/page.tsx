@@ -64,11 +64,14 @@ function SignupContent() {
     const [otp, setOtp] = useState("");
     const [confirmationResult, setConfirmationResult] = useState<any>(null);
     const [agreeTerms, setAgreeTerms] = useState(false);
+    const [signupSuccess, setSignupSuccess] = useState(false);
 
     const { loginWithEmail, loginWithGoogle, loginWithPhone, verifyOTP, updateProfile, isLoggedIn, isLoading: isAuthLoading, currentUser } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
+    // Temporary preview: /signup?preview=success
+    const isPreview = searchParams.get("preview") === "success";
 
     const fallbackRedirect = currentUser?.role === "organizer" ? "/dashboard" : "/";
     const redirectTo = searchParams.get("redirect") || fallbackRedirect;
@@ -94,7 +97,8 @@ function SignupContent() {
             }).catch(console.error);
 
             const dynamicRedirect = searchParams.get("redirect") || (role === "organizer" ? "/dashboard" : "/");
-            router.push(dynamicRedirect);
+            setSignupSuccess(true);
+            setTimeout(() => router.push(dynamicRedirect), 2500);
         } catch (error) {
             showToast(error instanceof Error ? error.message : "Failed to create account", "error");
             setIsLoading(false);
@@ -130,12 +134,40 @@ function SignupContent() {
                 await verifyOTP(confirmationResult, otp);
                 const fullName = `${firstName.trim()} ${surname.trim()}`;
                 if (fullName.trim()) await updateProfile(fullName);
+                const dynamicRedirect = searchParams.get("redirect") || (role === "organizer" ? "/dashboard" : "/");
+                setSignupSuccess(true);
+                setTimeout(() => router.push(dynamicRedirect), 2500);
             }
         } catch {
             showToast("Invalid verification code.", "error");
             setIsLoading(false);
         }
     };
+
+    if (signupSuccess || isPreview) {
+        return (
+            <div className="min-h-screen bg-[#fbf8ff] flex items-center justify-center px-4">
+                <div className="text-center max-w-md w-full">
+                    <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500">
+                            <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">You&apos;re in!</h1>
+                    <p className="text-gray-500 mb-1">
+                        Welcome{firstName ? `, ${firstName}` : ""}
+                        {role === "organizer" ? " — your organiser account is ready." : " — time to explore events."}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-4">
+                        Taking you to your {role === "organizer" ? "dashboard" : "homepage"}…
+                    </p>
+                    <div className="mt-6 flex justify-center">
+                        <span className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         /* ── Page shell ── */
