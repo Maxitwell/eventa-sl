@@ -47,11 +47,6 @@ function Discover() {
   };
 
   useEffect(() => {
-    // Prevent browser scroll restoration from briefly flashing the footer on load
-    if (typeof window !== "undefined") {
-      history.scrollRestoration = "manual";
-      window.scrollTo({ top: 0, behavior: "instant" });
-    }
     fetchInitialEvents();
   }, []);
 

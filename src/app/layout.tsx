@@ -46,6 +46,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Runs before browser scroll-restoration can fire — keeps hero at top on back-navigation */}
+        <script dangerouslySetInnerHTML={{ __html: `history.scrollRestoration='manual';` }} />
+      </head>
       <body suppressHydrationWarning className={`${inter.variable} ${interTight.variable} ${playfair.variable} antialiased bg-gray-50 text-gray-900 pb-20 relative min-h-screen flex flex-col`}>
         <SerwistProvider swUrl="/serwist/sw.js">
           <Providers>
