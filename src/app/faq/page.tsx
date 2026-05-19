@@ -92,22 +92,25 @@ function OrganisersFaqs() {
             <FaqPair num="Q2" q="What does Eventa cost organisers?" lead="Free events are free."
                 answer={<>For paid events, Eventa charges an <B>8% platform fee</B> on revenue. No setup costs. No monthly subscription. No surprises.</>}
             />
-            <FaqPair num="Q3" q="Can I see who's coming to my event?"
+            <FaqPair num="Q3" q="Will Eventa help promote my event?" lead="Yes!"
+                answer={<>We don't just list your event; we help you sell it out. We actively push events on our platform and run targeted ad campaigns across <B>Facebook, Instagram, and TikTok</B> to ensure your event reaches the right audience.</>}
+            />
+            <FaqPair num="Q4" q="Can I see who's coming to my event?"
                 answer={<>Yes. Your organiser dashboard shows <B>live ticket sales, attendee names, and real-time door scans</B>. Export the full guest list anytime.</>}
             />
-            <FaqPair num="Q4" q="How quickly do organisers get paid?"
+            <FaqPair num="Q5" q="How quickly do organisers get paid?"
                 answer={<>Payouts hit your <B>Orange Money, Afrimoney, or bank account</B> within 24–48 hours after the event ends. No long waits, no chasing.</>}
             />
-            <FaqPair num="Q5" q="Can I create different ticket tiers?"
+            <FaqPair num="Q6" q="Can I create different ticket tiers?"
                 answer={<>Yes. Create <B>Early Bird, VIP, Regular</B>, or any custom tier — each with its own price, quantity cap, and description.</>}
             />
-            <FaqPair num="Q6" q="Can I run a free RSVP event?" lead="Absolutely."
+            <FaqPair num="Q7" q="Can I run a free RSVP event?" lead="Absolutely."
                 answer={<>Set ticket price to <B>NLe 0</B> and Eventa becomes your free RSVP platform — with QR check-in and live attendance tracking included at no cost.</>}
             />
-            <FaqPair num="Q7" q="What happens if I cancel my event?"
+            <FaqPair num="Q8" q="What happens if I cancel my event?"
                 answer={<>Cancel through your dashboard. Eventa automatically <B>notifies all ticket holders</B> and processes full refunds to their original payment method.</>}
             />
-            <FaqPair num="Q8" q="Can door staff scan without internet?" lead="Yes."
+            <FaqPair num="Q9" q="Can door staff scan without internet?" lead="Yes."
                 answer={<>The Eventa scanner works <B>fully offline</B>. Scans sync automatically once internet is restored — no missed entries, no errors at the door.</>}
             />
         </div>
