@@ -37,6 +37,28 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Eventa",
   },
+  openGraph: {
+    title: "Eventa Sierra Leone - Discover & Create",
+    description: "Discover the hottest concerts, tech meetups, and beach festivals happening across the country this weekend.",
+    url: "https://eventa.africa",
+    siteName: "Eventa",
+    images: [
+      {
+        url: "/hero_event_crowd_vibe.png",
+        width: 1200,
+        height: 630,
+        alt: "Eventa Sierra Leone",
+      },
+    ],
+    locale: "en_SL",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Eventa Sierra Leone - Discover & Create",
+    description: "Discover the hottest concerts, tech meetups, and beach festivals happening across the country this weekend.",
+    images: ["/hero_event_crowd_vibe.png"],
+  },
 };
 
 export default function RootLayout({
